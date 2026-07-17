@@ -1,6 +1,6 @@
-# Alibaba Cloud / Qwen Cloud — deployment proof
+# Deployment (Qwen Cloud / DashScope)
 
-This file exists so judges can open **one path** that shows TraceLock uses **Alibaba Cloud DashScope (Qwen Cloud)** APIs — satisfying the hackathon requirement:
+TraceLock’s planner uses **Alibaba Cloud DashScope (Qwen Cloud)** OpenAI-compatible APIs. This page documents env, endpoints, and the code path.
 
 > *Proof of Alibaba Cloud Deployment: a link to a code file in the repo that demonstrates use of Alibaba Cloud services and APIs.*
 

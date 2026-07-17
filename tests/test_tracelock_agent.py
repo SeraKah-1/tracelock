@@ -161,12 +161,14 @@ def test_license_and_readme_exist():
     assert "MIT" in (root / "LICENSE").read_text(encoding="utf-8")
     readme = (root / "README.md").read_text(encoding="utf-8")
     assert "TraceLock" in readme
-    assert "Track 4" in readme
-    assert "Qwen" in readme
-    assert (root / "docs" / "USE_CASES.md").is_file()
-    assert (root / "docs" / "WIN_STRATEGY.md").is_file()
-    assert (root / "docs" / "SUBMISSION_CHECKLIST.md").is_file()
+    assert "Qwen" in readme or "DashScope" in readme
+    # product-facing docs (not hackathon coaching on the front door)
+    assert (root / "docs" / "USAGE.md").is_file()
+    assert (root / "docs" / "SCENARIOS.md").is_file()
     assert (root / "docs" / "assets" / "architecture.svg").stat().st_size > 500
-    assert (root / "docs" / "ALIBABA_QWEN_DEPLOYMENT.md").is_file()
+    assert (root / "docs" / "DEPLOYMENT.md").is_file()
     proof = (root / "tracelock" / "qwen_client.py").read_text(encoding="utf-8")
     assert "dashscope-intl.aliyuncs.com" in proof
+    # README should not tutor "win strategy" / name alternatives
+    assert "WIN_STRATEGY" not in readme
+    assert "Name alternatives" not in readme
