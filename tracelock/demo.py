@@ -12,6 +12,7 @@ from pathlib import Path
 from tracelock import __pitch__, __product__, __version__
 from tracelock.agent import format_run_text, run_agent
 from tracelock.events import EventLog, make_event_callback
+from tracelock.footprint import footprint_brief, parse_freeform_clue
 from tracelock.qwen_client import QwenConfig, deployment_fingerprint
 
 
@@ -78,6 +79,33 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Only print structured JSON to stdout",
     )
+
+    osint_p = sub.add_parser(
+        "osint",
+        help="Short prompt OSINT: 'osint @handle' or free text — expands to full footprint workflow",
+    )
+    osint_p.add_argument(
+        "text",
+        nargs="+",
+        help="Short clue phrase (no long prompt needed), e.g. @demo_subject_ig or phone:08…",
+    )
+    osint_p.add_argument("--case", default=None)
+    osint_p.add_argument("--offline", action="store_true", default=True)
+    osint_p.add_argument("--live", action="store_true", help="Use Qwen planner if key set")
+    osint_p.add_argument("--json-out", default=None)
+    osint_p.add_argument("--events-out", default=None)
+    osint_p.add_argument("--quiet", action="store_true")
+    osint_p.add_argument(
+        "--full-probe",
+        action="store_true",
+        help="Slower full platform set (default quick set for reliability)",
+    )
+
+    fp_p = sub.add_parser(
+        "footprint",
+        help="Show expanded digital-footprint checklist for a short clue (no full run)",
+    )
+    fp_p.add_argument("text", nargs="+", help="Short clue phrase")
 
     serve_p = sub.add_parser(
         "serve",
@@ -147,6 +175,73 @@ def main(argv: list[str] | None = None) -> int:
             open_browser=bool(args.open),
         )
         return 0
+
+    if args.cmd == "footprint":
+        phrase = " ".join(args.text)
+        clues = parse_freeform_clue(phrase)
+        brief = footprint_brief(clues)
+        print(json.dumps(brief, indent=2, ensure_ascii=False))
+        return 0
+
+    if args.cmd == "osint":
+        phrase = " ".join(args.text)
+        clues = parse_freeform_clue(phrase)
+        if not clues:
+            print(json.dumps({"ok": False, "error": "no clues parsed", "input": phrase}))
+            return 2
+        if args.case:
+            case_path = Path(args.case)
+        else:
+            tmp = Path(tempfile.mkdtemp(prefix="tracelock-osint-"))
+            case_path = tmp / "case.json"
+        offline = not bool(args.live)
+        if offline:
+            os.environ["TRACELOCK_OFFLINE"] = "1"
+        cfg = QwenConfig.from_env()
+        if offline:
+            cfg = QwenConfig(
+                api_key="",
+                base_url=cfg.base_url,
+                model=cfg.model,
+                offline=True,
+            )
+        on_event = None
+        if args.events_out:
+            elog = EventLog(jsonl_path=Path(args.events_out))
+            on_event = make_event_callback(elog)
+        # Expand plan quality: short prompt → full checklist via digital_footprint tool
+        result = run_agent(clues, case_path, cfg=cfg, on_event=on_event)
+        payload = result.to_dict()
+        payload["input_phrase"] = phrase
+        payload["expanded_clues"] = clues
+        payload["short_prompt_mode"] = True
+        if args.json_out:
+            Path(args.json_out).write_text(
+                json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+        if args.quiet:
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
+        else:
+            print("## Expanded clues (from short prompt)")
+            for c in clues:
+                print(f"  - {c}")
+            print()
+            print(format_run_text(result))
+            print(
+                json.dumps(
+                    {
+                        "ok": result.ok,
+                        "mode": result.mode,
+                        "expanded_clues": clues,
+                        "tools_run": [t.tool for t in result.tool_traces],
+                        "case_path": result.case_path,
+                        "report_chars": len(result.report_markdown or ""),
+                    },
+                    indent=2,
+                )
+            )
+        return 0 if result.ok else 1
 
     if args.cmd == "hitl":
         from osint_cli.hitl import complete_gate, list_gates

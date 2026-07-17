@@ -113,6 +113,7 @@ Available tools:
 - phone_queries: {"phone": "..."}
 - phone_checklist: {"phone": "..."}
 - name_pattern_enum: {}  (if handles without legal name)
+- digital_footprint: {"quick": true}  (cross-platform username enum + SERP pack + full checklist)
 - plan_sources: {}
 - open_hitl: {"template": "pddikti|phone_layer_b|browser_challenge", "reason": "..."}
 - build_dossier: {}
@@ -158,14 +159,34 @@ def offline_plan_for_clues(clues: list[str]) -> AgentPlan:
         )
         hitl.append("Phone Layer-B e-wallet/contact-sync — operator only, never auto")
 
-    if any(x in joined for x in ("@", "instagram", "tiktok", "handle")) and not any(
-        k in joined for k in ("name:", "nama:")
-    ):
+    has_handle = any(
+        x in joined
+        for x in (
+            "@",
+            "instagram",
+            "tiktok",
+            "handle",
+            "username:",
+            "threads",
+            "github",
+        )
+    )
+    if has_handle and not any(k in joined for k in ("name:", "nama:")):
         steps.append(
             PlanStep(
                 "name_pattern_enum",
                 {},
                 "Unknown-name path: expand handle nick patterns instead of asking legal name",
+            )
+        )
+
+    # Always run digital footprint when any identity clue exists (anti-lazy full trail)
+    if has_handle or "url:" in joined or "name:" in joined or "phone" in joined:
+        steps.append(
+            PlanStep(
+                "digital_footprint",
+                {"quick": True},
+                "Cross-platform username enum + SERP pack + full footprint checklist",
             )
         )
 
@@ -212,8 +233,8 @@ def offline_plan_for_clues(clues: list[str]) -> AgentPlan:
         provider="alibaba-cloud-dashscope",
         base_url=DEFAULT_BASE_URL,
         summary=(
-            "Offline autopilot plan: classify clues, run public tools, open HITL "
-            "on zero-autonomy zones, emit graded dossier."
+            "Digital footprint autopilot: normalize clues, cross-platform enum, "
+            "phone Layer-A/B policy, HITL walls, graded dossier (digital ≠ civil)."
         ),
         steps=steps,
         hitl_checkpoints=hitl,

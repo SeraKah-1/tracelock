@@ -200,6 +200,7 @@ def tool_plan_sources(case_path: Path, **_kwargs: Any) -> dict[str, Any]:
     sources = [
         {"id": "websearch", "role": "Multi-engine public SERP"},
         {"id": "phone_footprint", "role": "Layer-A phone SERP + wa.me"},
+        {"id": "digital_footprint", "role": "Cross-platform username enum + checklist"},
         {"id": "name_pattern_enum", "role": "Unknown-name handle expansion"},
         {"id": "username_enum", "role": "Cross-platform username probe"},
         {"id": "gov_id", "role": "Passive MA/AHU/LPSE/KPU pack"},
@@ -209,6 +210,98 @@ def tool_plan_sources(case_path: Path, **_kwargs: Any) -> dict[str, Any]:
     _ev(state, etype="plan_sources", value={"sources": sources})
     save_state(state, case_path)
     return {"ok": True, "tool": "plan_sources", "sources": sources}
+
+
+def tool_digital_footprint(
+    case_path: Path,
+    clues: list[str] | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Full digital-trail pack: checklist + cross-platform handle probes + SERP queries."""
+    from tracelock.footprint import (
+        FOOTPRINT_CHECKLIST,
+        enum_handle_platforms,
+        footprint_brief,
+        handles_from_clues,
+        serp_query_pack,
+    )
+
+    state = load_state(case_path)
+    # Prefer live seeds; fall back to passed clues
+    seed_texts: list[str] = []
+    for s in state.get("seeds") or []:
+        t = s.get("type")
+        v = s.get("normalized") or s.get("value") or ""
+        if t and v:
+            seed_texts.append(f"{t}:{v}")
+    for c in clues or []:
+        if c not in seed_texts:
+            seed_texts.append(c)
+
+    handles = handles_from_clues(seed_texts)
+    # also raw username fields
+    for s in state.get("seeds") or []:
+        if s.get("type") == "username":
+            h = (s.get("normalized") or s.get("value") or "").lstrip("@")
+            if h and h not in handles:
+                handles.append(h)
+
+    args = kwargs.get("args") or {}
+    quick = bool(args.get("quick") or kwargs.get("quick"))
+    # quick = fewer platforms for CI; full = research set
+    platforms = (
+        ["instagram", "tiktok", "threads", "github", "x"]
+        if quick
+        else None
+    )
+    timeout = float(args.get("timeout") or (4.0 if quick else 6.0))
+
+    enums: list[dict[str, Any]] = []
+    for h in handles[:5]:
+        enums.append(enum_handle_platforms(h, platforms=platforms, timeout=timeout))
+
+    brief = footprint_brief(seed_texts)
+    pack = {
+        "checklist": FOOTPRINT_CHECKLIST,
+        "handles": handles,
+        "platform_enums": enums,
+        "serp_queries": serp_query_pack(seed_texts, handles),
+        "workflow": brief["workflow"],
+        "policy": brief["policy"],
+    }
+    _ev(state, etype="digital_footprint", value=pack, confidence=0.75)
+    # promote hit signals into digital dimension-friendly evidence
+    for en in enums:
+        for hit in en.get("hits") or []:
+            _ev(
+                state,
+                etype="username_platform_hit",
+                value={
+                    "handle": en.get("handle"),
+                    "platform": hit.get("platform"),
+                    "url": hit.get("url"),
+                    "http_status": hit.get("http_status"),
+                    "title": hit.get("title"),
+                },
+                confidence=0.55,
+            )
+    state["digital_footprint"] = {
+        "handles": handles,
+        "hit_count": sum(e.get("hit_count") or 0 for e in enums),
+        "probed": sum(e.get("probed") or 0 for e in enums),
+    }
+    save_state(state, case_path)
+    return {
+        "ok": True,
+        "tool": "digital_footprint",
+        "handles": handles,
+        "hit_count": state["digital_footprint"]["hit_count"],
+        "probed": state["digital_footprint"]["probed"],
+        "serp_query_count": len(pack["serp_queries"]),
+        "checklist_steps": len(FOOTPRINT_CHECKLIST),
+        "enums": enums,
+        "serp_queries": pack["serp_queries"],
+    }
 
 
 def tool_open_hitl(
@@ -278,8 +371,19 @@ def tool_build_dossier(case_path: Path, **_kwargs: Any) -> dict[str, Any]:
         if "phone" in t:
             dims["phone"]["status"] = "partial"
             dims["phone"]["signals"].append(t)
-        if "name_pattern" in t:
+        if "name_pattern" in t or "digital_footprint" in t or "username_platform" in t:
             dims["identity_digital"]["status"] = "partial"
+            if "username_platform" in t:
+                val = ev.get("value") if isinstance(ev.get("value"), dict) else {}
+                dims["identity_digital"]["signals"].append(
+                    f"platform hit soft: {val.get('platform')} @{val.get('handle')}"
+                )
+    fp = state.get("digital_footprint") or {}
+    if fp.get("handles"):
+        dims["identity_digital"]["status"] = "partial"
+        dims["identity_digital"]["signals"].append(
+            f"footprint enum: {fp.get('hit_count', 0)}/{fp.get('probed', 0)} soft hits"
+        )
     dossier = {
         "product": "TraceLock",
         "version": "1.0.0",
@@ -372,6 +476,7 @@ REGISTRY: dict[str, ToolFn] = {
     "phone_queries": tool_phone_queries,
     "phone_checklist": tool_phone_checklist,
     "name_pattern_enum": tool_name_pattern_enum,
+    "digital_footprint": tool_digital_footprint,
     "plan_sources": tool_plan_sources,
     "open_hitl": tool_open_hitl,
     "build_dossier": tool_build_dossier,

@@ -74,6 +74,11 @@ python3 -m tracelock run --offline \
 # stream events to JSONL (for host agents / demos)
 python3 -m tracelock run --offline --events-out /tmp/tracelock-events.jsonl
 
+# short prompt → full digital-footprint OSINT (no long checklist paste)
+python3 -m tracelock osint @demo_subject_ig
+python3 -m tracelock osint "phone:0812-5550-0100"
+python3 -m tracelock footprint @demo_subject_ig   # preview checklist only
+
 # operator cockpit: live logs + HITL gate panel (captcha → human, never auto-solve)
 python3 -m tracelock serve --port 8765
 # → http://127.0.0.1:8765/
@@ -94,7 +99,7 @@ result = run_agent(
 print(result.report_markdown)
 ```
 
-More: [`docs/USAGE.md`](docs/USAGE.md) · cockpit: [`docs/COCKPIT.md`](docs/COCKPIT.md) · scenarios: [`docs/SCENARIOS.md`](docs/SCENARIOS.md)
+More: [`docs/USAGE.md`](docs/USAGE.md) · footprint: [`docs/DIGITAL_FOOTPRINT.md`](docs/DIGITAL_FOOTPRINT.md) · cockpit: [`docs/COCKPIT.md`](docs/COCKPIT.md) · scenarios: [`docs/SCENARIOS.md`](docs/SCENARIOS.md)
 
 ---
 
