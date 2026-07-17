@@ -7,9 +7,18 @@ Thin UI on top of the existing TraceLock CLI/agent. **Does not replace** `tracel
 | Feature | Purpose |
 |---------|---------|
 | Live event log | See plan → tool steps as they run |
-| HITL panel | When a zero-autonomy gate opens (captcha/portal/Layer-B), show URL + checklist |
+| **Auto HITL popup** | On every `hitl_open` event: modal + optional browser notification + beep |
+| HITL panel | List of open gates; re-popup button |
 | Complete gate | Operator marks challenge done → evidence attached to case |
-| Same engine | Calls `run_agent()` — offline/live planner unchanged |
+| Same engine | Calls `run_agent()` — local planner + live collect by default |
+
+### Popup behavior
+
+1. Tool opens a gate → server emits `hitl_open`  
+2. Cockpit poll (~600ms) receives event → **modal opens automatically**  
+3. Operator opens portal URL, solves captcha, marks completed  
+4. If multiple gates: queue (“Next gate”)  
+5. Open gates on page load also auto-popup once each
 
 ## Run
 
