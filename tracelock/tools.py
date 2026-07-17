@@ -493,66 +493,47 @@ def tool_build_dossier(case_path: Path, **_kwargs: Any) -> dict[str, Any]:
 
 
 def tool_report(case_path: Path, **_kwargs: Any) -> dict[str, Any]:
+    """Emit human-readable report (+ short brief). Replaces messy raw dossier dump."""
+    from tracelock.report_human import build_human_report
+
     state = load_state(case_path)
     dossier = state.get("agent_dossier") or {}
     gates = state.get("hitl_gates") or []
     evidence = state.get("evidence") or []
-    seeds = state.get("seeds") or []
-    lines = [
-        "# TraceLock Investigation Report",
-        "",
-        f"- Investigation: `{state.get('investigation_id')}`",
-        f"- Seeds: {len(seeds)}",
-        f"- Evidence items: {len(evidence)}",
-        f"- HITL gates: {len(gates)}",
-        f"- Policy: digital ≠ civil · public sources only · no breach/NIK",
-        "",
-        "## Seeds",
-    ]
-    for s in seeds:
-        lines.append(
-            f"- `{s.get('type')}`: {s.get('normalized') or s.get('value')}"
-        )
-    lines.append("")
-    lines.append("## Dimensions")
-    for name, body in (dossier.get("dimensions") or {}).items():
-        status = body.get("status") if isinstance(body, dict) else "?"
-        sigs = body.get("signals") if isinstance(body, dict) else []
-        lines.append(f"### {name} — `{status}`")
-        for sig in (sigs or [])[:10]:
-            lines.append(f"- {sig}")
-        if not sigs:
-            lines.append("- (no signals yet)")
-        lines.append("")
-    lines.append("## HITL / Zero-Autonomy Checkpoints")
-    if not gates:
-        lines.append("- (none opened)")
-    for g in gates:
-        if not isinstance(g, dict):
-            continue
-        lines.append(
-            f"- `{g.get('id')}` kind=`{g.get('kind') or g.get('source')}` "
-            f"status=`{g.get('status')}` — {g.get('why') or g.get('reason') or ''}"
-        )
-    lines.append("")
-    lines.append("## Evidence trail (last 12)")
-    for ev in evidence[-12:]:
-        if isinstance(ev, dict):
-            lines.append(
-                f"- `{ev.get('id')}` type=`{ev.get('type')}` "
-                f"src=`{ev.get('source_name')}`"
-            )
-    md = "\n".join(lines)
-    state["report_markdown"] = md
+    packs = build_human_report(state)
+    human = packs["human_md"]
+    brief = packs["brief_txt"]
+    combined = packs["combined_md"]
+    # Primary report is the clean human format
+    state["report_markdown"] = human
+    state["report_brief"] = brief
+    state["report_technical"] = packs["technical_md"]
+    state["report_combined"] = combined
+    # Optional files next to case
+    try:
+        base = Path(case_path)
+        human_path = base.with_suffix(".report.md")
+        brief_path = base.with_suffix(".brief.txt")
+        human_path.write_text(human + "\n", encoding="utf-8")
+        brief_path.write_text(brief + "\n", encoding="utf-8")
+        state["report_paths"] = {
+            "human_md": str(human_path),
+            "brief_txt": str(brief_path),
+        }
+    except Exception:
+        state["report_paths"] = {}
     save_state(state, case_path)
     return {
         "ok": True,
         "tool": "report",
-        "markdown": md,
+        "markdown": human,
+        "brief": brief,
+        "technical": packs["technical_md"],
         "dossier": dossier,
         "evidence_count": len(evidence),
         "hitl_gate_count": len(gates),
-        "report_class": "dossier",
+        "report_class": "human_report",
+        "report_paths": state.get("report_paths") or {},
     }
 
 

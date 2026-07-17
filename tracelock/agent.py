@@ -26,6 +26,7 @@ class AgentRunResult:
     plan: dict[str, Any]
     tool_traces: list[ToolTrace] = field(default_factory=list)
     report_markdown: str = ""
+    report_brief: str = ""
     dossier: dict[str, Any] = field(default_factory=dict)
     case_path: str = ""
     hitl_checkpoints: list[str] = field(default_factory=list)
@@ -52,6 +53,7 @@ class AgentRunResult:
             ],
             "dossier": self.dossier,
             "report_markdown": self.report_markdown,
+            "report_brief": getattr(self, "report_brief", "") or "",
             "errors": self.errors,
             "product": "TraceLock",
             "track": "Track 4: Autopilot Agent",
@@ -134,6 +136,7 @@ def run_agent(
     traces: list[ToolTrace] = []
     errors: list[str] = []
     report_md = ""
+    report_brief = ""
     dossier: dict[str, Any] = {}
 
     # Always ensure init runs first if planner skipped it
@@ -148,7 +151,7 @@ def run_agent(
     if "report" not in step_tools:
         from tracelock.qwen_client import PlanStep
 
-        ordered_steps.append(PlanStep("report", {}, "Emit dossier report"))
+        ordered_steps.append(PlanStep("report", {}, "Emit human-readable report"))
 
     for i, step in enumerate(ordered_steps[:max_steps]):
         _emit(
@@ -203,6 +206,7 @@ def run_agent(
             )
         if step.tool == "report":
             report_md = result.get("markdown") or ""
+            report_brief = result.get("brief") or report_brief
             dossier = result.get("dossier") or dossier
         if step.tool == "build_dossier" and result.get("dossier"):
             dossier = result["dossier"]
@@ -224,11 +228,12 @@ def run_agent(
                 step_index=len(traces),
                 tool="report",
                 args={},
-                reason="forced final report",
+                reason="forced final human report",
                 result=result,
             )
         )
         report_md = result.get("markdown") or ""
+        report_brief = result.get("brief") or ""
         dossier = result.get("dossier") or dossier
         _emit(on_event, "tool_end", "report forced", tool="report", ok=bool(result.get("ok")))
 
@@ -249,6 +254,7 @@ def run_agent(
         plan=plan.to_dict(),
         tool_traces=traces,
         report_markdown=report_md,
+        report_brief=report_brief,
         dossier=dossier,
         case_path=str(case_path),
         hitl_checkpoints=list(plan.hitl_checkpoints),
@@ -258,37 +264,25 @@ def run_agent(
 
 
 def format_run_text(result: AgentRunResult) -> str:
-    """Human-readable run transcript for CLI / demo logs."""
+    """Human-first output: clean report first, then short tool log."""
     lines = [
         "=" * 72,
-        "TraceLock Autopilot Agent — Run Transcript",
-        f"Mode: {result.mode} | Track: 4 Autopilot Agent | OK: {result.ok}",
-        f"Case: {result.case_path}",
+        "TraceLock — Laporan OSINT",
+        f"Mode: {result.mode} | OK: {result.ok} | Case: {result.case_path}",
         "=" * 72,
         "",
-        "## Plan",
-        json.dumps(result.plan, indent=2, ensure_ascii=False)[:4000],
-        "",
-        "## HITL checkpoints (planned)",
     ]
-    for h in result.hitl_checkpoints or ["(none)"]:
-        lines.append(f"- {h}")
+    if result.report_brief:
+        lines.append("## Brief")
+        lines.append(result.report_brief)
+        lines.append("")
+    lines.append(result.report_markdown or "(empty report)")
     lines.append("")
-    lines.append("## Tool loop")
+    lines.append("---")
+    lines.append("## Tool loop (ringkas)")
     for t in result.tool_traces:
         status = "OK" if t.result.get("ok") else "FAIL"
-        lines.append(
-            f"[{t.step_index}] {t.tool} → {status} | {t.reason}"
-        )
-        lines.append(
-            f"    summary: {json.dumps(_summarize_result(t.result), ensure_ascii=False)}"
-        )
-    lines.append("")
-    lines.append("## Dossier (structured)")
-    lines.append(json.dumps(result.dossier, indent=2, ensure_ascii=False)[:5000])
-    lines.append("")
-    lines.append("## Report")
-    lines.append(result.report_markdown or "(empty report)")
+        lines.append(f"- [{t.step_index}] {t.tool} → {status}")
     if result.errors:
         lines.append("")
         lines.append("## Errors")

@@ -180,6 +180,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     hitl_c.add_argument("--grade", default="operator_clue")
 
+    rep_p = sub.add_parser(
+        "report",
+        help="Rebuild human-readable report from an existing case JSON",
+    )
+    rep_p.add_argument("--case", required=True)
+    rep_p.add_argument(
+        "--format",
+        choices=("human", "brief", "technical", "all"),
+        default="human",
+        help="Which report to print (default: human)",
+    )
+    rep_p.add_argument("--out", default=None, help="Write markdown/text to this path")
+
     sub.add_parser("deploy-proof", help="Print Alibaba/Qwen deployment fingerprint JSON")
     sub.add_parser("tools", help="List agent tools")
 
@@ -224,6 +237,31 @@ def main(argv: list[str] | None = None) -> int:
         brief = footprint_brief(clues)
         print(json.dumps(brief, indent=2, ensure_ascii=False))
         return 0
+
+    if args.cmd == "report":
+        from osint_cli.state import load_state, save_state
+        from tracelock.report_human import build_human_report
+        from tracelock.tools import run_tool
+
+        case_path = Path(args.case)
+        # rebuild dossier + human report from current evidence
+        run_tool("build_dossier", case_path)
+        r = run_tool("report", case_path)
+        packs = {
+            "human": r.get("markdown") or "",
+            "brief": r.get("brief") or "",
+            "technical": r.get("technical") or "",
+            "all": (r.get("markdown") or "")
+            + "\n\n"
+            + (r.get("technical") or ""),
+        }
+        text = packs.get(args.format) or packs["human"]
+        if args.out:
+            Path(args.out).write_text(text + "\n", encoding="utf-8")
+            print(json.dumps({"ok": True, "written": args.out, "format": args.format}))
+        else:
+            print(text)
+        return 0 if r.get("ok") else 1
 
     if args.cmd == "investigate":
         phrase = " ".join(args.text)
@@ -341,29 +379,40 @@ def main(argv: list[str] | None = None) -> int:
                 encoding="utf-8",
             )
         if args.quiet:
-            print(json.dumps(payload, indent=2, ensure_ascii=False))
+            # quiet still prioritizes human report fields for host agents
+            out = {
+                "ok": result.ok,
+                "mode": result.mode,
+                "planner": cfg.provider,
+                "network_collection": not no_net,
+                "expanded_clues": clues,
+                "case_path": result.case_path,
+                "report_brief": result.report_brief,
+                "report_markdown": result.report_markdown,
+                "report_paths": {},
+                "tools_run": [t.tool for t in result.tool_traces],
+            }
+            try:
+                from osint_cli.state import load_state
+
+                st = load_state(case_path)
+                out["report_paths"] = st.get("report_paths") or {}
+            except Exception:
+                pass
+            print(json.dumps(out, indent=2, ensure_ascii=False))
         else:
-            print("## Expanded clues (from short prompt)")
-            for c in clues:
-                print(f"  - {c}")
-            print(f"## Planner: {cfg.provider} | network_collection={not no_net}")
-            print()
             print(format_run_text(result))
-            print(
-                json.dumps(
-                    {
-                        "ok": result.ok,
-                        "mode": result.mode,
-                        "planner": cfg.provider,
-                        "network_collection": not no_net,
-                        "expanded_clues": clues,
-                        "tools_run": [t.tool for t in result.tool_traces],
-                        "case_path": result.case_path,
-                        "report_chars": len(result.report_markdown or ""),
-                    },
-                    indent=2,
-                )
-            )
+            try:
+                from osint_cli.state import load_state
+
+                st = load_state(case_path)
+                paths = st.get("report_paths") or {}
+                if paths:
+                    print("\n## File laporan")
+                    for k, v in paths.items():
+                        print(f"- {k}: {v}")
+            except Exception:
+                pass
         return 0 if result.ok else 1
 
     if args.cmd == "hitl":

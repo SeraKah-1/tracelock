@@ -82,6 +82,10 @@ python3 -m tracelock osint "name:Example Public Figure"
 python3 -m tracelock investigate "name:Example Public Figure"
 python3 -m tracelock continue --case /path/to/case.json
 
+# rebuild clean human report from a case
+python3 -m tracelock report --case /path/to/case.json
+python3 -m tracelock report --case /path/to/case.json --format brief
+
 # Host AI: prefer `investigate`, never `--offline` for real work (see AGENTS.md)
 python3 -m tracelock footprint @demo_subject_ig   # preview checklist only
 

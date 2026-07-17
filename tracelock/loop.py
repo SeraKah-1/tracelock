@@ -416,24 +416,34 @@ def investigate_continuous(
 
     state = load_state(case_path) if case_path.is_file() else {}
     cov = checklist_coverage(state)
-    final = state.get("report_markdown") or r1.report_markdown or ""
-    # Append loop summary to report
+    # Rebuild clean human report, then append short loop footer
+    from tracelock.tools import run_tool as _rt
+
+    _rt("build_dossier", case_path, clues=clues)
+    rep = _rt("report", case_path, clues=clues)
+    state = load_state(case_path)
+    final = rep.get("markdown") or state.get("report_markdown") or r1.report_markdown or ""
     loop_md = [
         "",
-        "## Continuous investigation loop",
-        f"- Waves run: {len(waves)}",
-        f"- Stop: {stop_reason}",
-        f"- Checklist coverage: {cov['done_or_partial']}/{cov['total']} ({cov['ratio']})",
+        "---",
         "",
-        "### Per-wave",
+        "## Proses investigasi berlanjut (waves)",
+        f"- Jumlah wave: **{len(waves)}**",
+        f"- Berhenti karena: **{stop_reason}**",
+        f"- Coverage checklist: **{cov['done_or_partial']}/{cov['total']}** ({cov['ratio']})",
+        "",
     ]
     for w in waves:
         loop_md.append(
-            f"- Wave {w.wave}: tools={w.tools_run} evidence={w.evidence_count} "
-            f"gaps={w.open_gaps} hitl_open={w.hitl_open}"
+            f"- Wave {w.wave}: {', '.join(w.tools_run) or '—'} · "
+            f"evidence={w.evidence_count} · hitl_open={w.hitl_open}"
         )
     final = (final or "") + "\n".join(loop_md)
     state["report_markdown"] = final
+    try:
+        Path(case_path).with_suffix(".report.md").write_text(final + "\n", encoding="utf-8")
+    except Exception:
+        pass
     save_state(state, case_path)
 
     return LoopResult(

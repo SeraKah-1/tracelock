@@ -347,7 +347,9 @@ async function refreshStatus() {
       if (g && g.id && !hitlShown.has(g.id)) enqueueHitl(g);
     });
   }
+  // Prefer human report; fall back to brief
   if (j.report_markdown) reportEl.textContent = j.report_markdown;
+  else if (j.report_brief) reportEl.textContent = j.report_brief;
   if (j.running) {
     runState.textContent = 'running';
     runState.classList.add('busy');
@@ -449,20 +451,25 @@ class CockpitState:
     def status(self) -> dict[str, Any]:
         open_gates: list[dict[str, Any]] = []
         report_md = ""
+        report_brief = ""
         if self.case_path.is_file():
             try:
                 st = load_state(self.case_path)
                 open_gates = list_gates(st, status="open")
                 report_md = st.get("report_markdown") or ""
+                report_brief = st.get("report_brief") or ""
             except Exception as e:
                 report_md = f"(case load error: {e})"
         if self.last_result and self.last_result.get("report_markdown"):
             report_md = self.last_result["report_markdown"]
+        if self.last_result and self.last_result.get("report_brief"):
+            report_brief = self.last_result["report_brief"]
         return {
             "running": self.running,
             "case_path": str(self.case_path),
             "open_gates": open_gates,
             "report_markdown": report_md,
+            "report_brief": report_brief,
             "event_count": len(self.log.snapshot()),
             "last_ok": (self.last_result or {}).get("ok"),
         }

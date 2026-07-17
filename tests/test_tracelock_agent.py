@@ -29,7 +29,7 @@ def test_offline_plan_has_tools_and_hitl():
     plan = offline_plan_for_clues(
         ["username:demo_subject_ig", "phone:0812-5550-0100"]
     )
-    assert plan.mode == "offline"
+    assert plan.mode == "local"
     tools = [s.tool for s in plan.steps]
     assert "init_case" in tools
     assert "normalize_phone" in tools
@@ -54,7 +54,7 @@ def test_plan_with_qwen_offline_env(monkeypatch):
     cfg = QwenConfig.from_env()
     assert cfg.offline is True
     plan = plan_with_qwen(["phone:081255500100"], cfg)
-    assert plan.mode == "offline"
+    assert plan.mode == "local"
     assert len(plan.steps) >= 3
 
 
@@ -96,7 +96,7 @@ def test_run_agent_offline_end_to_end(case_path: Path, monkeypatch):
         cfg=cfg,
     )
     assert result.ok is True
-    assert result.mode == "offline"
+    assert result.mode == "local"
     assert len(result.tool_traces) >= 5
     tools = [t.tool for t in result.tool_traces]
     assert "init_case" in tools
@@ -132,7 +132,7 @@ def test_demo_main_offline_exit_zero(tmp_path: Path, monkeypatch, capsys):
     assert out_json.is_file()
     data = json.loads(out_json.read_text(encoding="utf-8"))
     assert data["ok"] is True
-    assert data["mode"] == "offline"
+    assert data["mode"] == "local"
     assert data["report_markdown"].strip()
     assert len(data["tool_traces"]) >= 4
     # stdout also JSON in quiet mode
