@@ -39,7 +39,7 @@ python3 -m tracelock run --offline
 # 3) Live Qwen (disarankan untuk video)
 export DASHSCOPE_API_KEY=sk-...   # dari https://www.qwencloud.com/
 pip install '.[qwen]'
-python3 -m tracelock run --clue 'username:demo_subject_ig' --clue 'phone:0811-6060-0613'
+python3 -m tracelock run --clue 'username:demo_subject_ig' --clue 'phone:0812-5550-0100'
 
 # 4) Proof fingerprint (tidak bocor secret)
 python3 -m tracelock deploy-proof

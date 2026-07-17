@@ -12,18 +12,18 @@ from osint_cli.state import new_investigation
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _galih_like_state():
-    st = new_investigation("/tmp/plan-galih.json")
-    add_seed(st, "name:Galih Anggoro")
-    add_seed(st, "other:FK UNRI")
-    add_seed(st, "other:CIMSA FK UNRI")
-    add_seed(st, "other:Perdagangan Simalungun")
+def _sample_academic_state():
+    st = new_investigation("/tmp/plan-sample-subject.json")
+    add_seed(st, "name:Jordan Sample Subject")
+    add_seed(st, "other:FK CONTOH")
+    add_seed(st, "other:SAMPLE_STUDENT_ORG FK CONTOH")
+    add_seed(st, "other:Kota Contoh")
     add_seed(st, "other:masuk 2025")
     return st
 
 
 def test_analyze_emits_pddikti_and_primary_org_routes():
-    st = _galih_like_state()
+    st = _sample_academic_state()
     a = analyze_clues(st)
     assert a["schema"] == "clue_analysis_v1"
     assert a["summary"]["question_count"] >= 3
@@ -38,13 +38,13 @@ def test_analyze_emits_pddikti_and_primary_org_routes():
     p0 = [q for q in a["questions"] if q["priority"] == 0]
     assert any("pddikti" in (q.get("suggested_sources") or []) for q in p0)
     assert any(
-        "tag" in q["text"].lower() or "primary" in q["text"].lower() or "cimsa" in q["text"].lower()
+        "tag" in q["text"].lower() or "primary" in q["text"].lower() or "sample" in q["text"].lower() or "org" in q["text"].lower()
         for q in p0
     )
 
 
 def test_apply_merges_questions_into_state():
-    st = _galih_like_state()
+    st = _sample_academic_state()
     before = len(st.get("questions") or [])
     a = apply_analysis_to_state(st, merge_questions=True)
     assert st.get("clue_analysis")
@@ -81,9 +81,9 @@ def test_cli_plan_subcommand():
             str(case),
             "seed",
             "add",
-            "name:Galih Anggoro",
-            "other:FK UNRI",
-            "other:CIMSA",
+            "name:Jordan Sample Subject",
+            "other:FK CONTOH",
+            "other:SAMPLE_STUDENT_ORG",
         ],
         cwd=ROOT,
         capture_output=True,

@@ -39,7 +39,7 @@ def test_hitl_open_complete_roundtrip():
                 str(case),
                 "seed",
                 "add",
-                "name:Risya Araminta",
+                "name:Testa Personita",
             ]
         )
         assert r["ok"] is True
@@ -73,9 +73,9 @@ def test_hitl_open_complete_roundtrip():
                 "--value",
                 json.dumps(
                     {
-                        "nama": "RISYA ARAMINTA",
-                        "nim": "25081206542",
-                        "nama_pt": "UNIVERSITAS RIAU",
+                        "nama": "TESTA PERSONITA",
+                        "nim": "25081109901",
+                        "nama_pt": "UNIVERSITAS CONTOH",
                     }
                 ),
             ]
@@ -113,7 +113,7 @@ def test_hitl_import_file():
 
 
 def test_gov_directed_queries_passive():
-    qs = directed_queries("Risya Araminta", sources=["putusan_ma", "ahu"])
+    qs = directed_queries("Testa Personita", sources=["putusan_ma", "ahu"])
     assert qs
     assert any("putusan3.mahkamahagung" in q["query"] for q in qs)
     assert any("ahu.go.id" in q["query"] for q in qs)
@@ -165,8 +165,8 @@ def test_plan_includes_gov_route():
                 str(case),
                 "seed",
                 "add",
-                "name:Risya Araminta",
-                "other:FK UNRI",
+                "name:Testa Personita",
+                "other:FK CONTOH",
             ]
         )
         r = _run(["-c", str(case), "plan"])

@@ -111,7 +111,7 @@ COCKPIT_HTML = r"""<!DOCTYPE html>
     <h2>Run</h2>
     <label>Clues (one per line, type:value)</label>
     <textarea id="clues">username:demo_subject_ig
-phone:0811-6060-0613
+phone:0812-5550-0100
 other:FK demo university maba cohort fixture</textarea>
     <div class="row">
       <label style="display:flex;align-items:center;gap:6px;margin:0">

@@ -18,7 +18,7 @@ from tracelock.qwen_client import QwenConfig, deployment_fingerprint
 DEFAULT_FIXTURE_CLUES = [
     "username:demo_subject_ig",
     "other:FK demo university maba cohort fixture",
-    "phone:0811-6060-0613",
+    "phone:0812-5550-0100",
     "other:ambiguous dual-handle research — no legal name yet",
 ]
 

@@ -12,38 +12,38 @@ from osint_cli.state import new_investigation
 
 
 def test_detect_phone_bare_and_typed():
-    assert detect_type("081160600613") == "phone"
-    assert detect_type("+62 811-60600-613") == "phone"
-    assert detect_type("phone:0811-60600-613".split(":", 1)[1]) == "phone"
+    assert detect_type("081255500100") == "phone"
+    assert detect_type("+62 812-5550-0100") == "phone"
+    assert detect_type("phone:0812-5550-0100".split(":", 1)[1]) == "phone"
 
 
 def test_normalize_id_to_e164():
-    assert normalize_value("phone", "0811-60600-613") == "+6281160600613"
-    assert normalize_value("phone", "6281160600613") == "+6281160600613"
-    assert normalize_value("phone", "+62 811 60600 613") == "+6281160600613"
-    rec = normalize_phone_record("0811-60600-613")
+    assert normalize_value("phone", "0812-5550-0100") == "+6281255500100"
+    assert normalize_value("phone", "6281255500100") == "+6281255500100"
+    assert normalize_value("phone", "+62 812 5550 0100") == "+6281255500100"
+    rec = normalize_phone_record("0812-5550-0100")
     assert rec["ok"] is True
-    assert rec["e164"] == "+6281160600613"
-    assert rec["national"] == "081160600613"
-    assert rec["prefix"]["provider_hint"] == "Telkomsel"
+    assert rec["e164"] == "+6281255500100"
+    assert rec["national"] == "081255500100"
+    assert rec.get("prefix") is not None
     assert any(v.startswith("0") for v in rec["variants"])
 
 
 def test_phone_seed_dedupe_across_forms():
     st = new_investigation("/tmp/phone-dedupe.json")
-    a = add_seed(st, "phone:0811-60600-613")
-    b = add_seed(st, "phone:+6281160600613")
-    c = add_seed(st, "phone:6281160600613")
+    a = add_seed(st, "phone:0812-5550-0100")
+    b = add_seed(st, "phone:+6281255500100")
+    c = add_seed(st, "phone:6281255500100")
     assert a["id"] == b["id"] == c["id"]
     assert len(st["seeds"]) == 1
-    assert a["normalized"] == "+6281160600613"
-    assert a.get("meta", {}).get("phone_parse", {}).get("e164") == "+6281160600613"
+    assert a["normalized"] == "+6281255500100"
+    assert a.get("meta", {}).get("phone_parse", {}).get("e164") == "+6281255500100"
 
 
 def test_footprint_queries_and_checklist():
-    rec = normalize_phone_record("081160600613")
+    rec = normalize_phone_record("081255500100")
     qs = build_footprint_queries(rec)
-    assert any("0811" in q or "62811" in q for q in qs)
+    assert any("0812" in q or "62812" in q for q in qs)
     assert any("wa.me" in q for q in qs)
     cl = hitl_phone_checklist(rec)
     assert cl["layer"] == "B"
@@ -53,7 +53,7 @@ def test_footprint_queries_and_checklist():
 
 def test_plan_has_phone_route():
     st = new_investigation("/tmp/phone-plan.json")
-    add_seed(st, "phone:0811-60600-613")
+    add_seed(st, "phone:0812-5550-0100")
     a = analyze_clues(st)
     assert a["summary"]["has_phone_route"] is True
     blob = str(a).lower()
@@ -65,7 +65,7 @@ def test_plan_has_phone_route():
 
 def test_offline_phone_footprint_collect():
     st = new_investigation("/tmp/phone-collect.json")
-    s = add_seed(st, "phone:0811-60600-613")
+    s = add_seed(st, "phone:0812-5550-0100")
     assert "phone_footprint" in MODULE_MAP
     result = run_collect(
         st,

@@ -38,7 +38,7 @@ python3 -m tracelock run --offline \
 **Clues**
 
 ```text
-phone:0811-6060-0613
+phone:0812-5550-0100
 other:ticket — public footprint first
 ```
 
@@ -51,6 +51,6 @@ other:ticket — public footprint first
 
 ```bash
 python3 -m tracelock run --offline \
-  --clue 'phone:0811-6060-0613' \
+  --clue 'phone:0812-5550-0100' \
   --clue 'other:ticket — public footprint first'
 ```

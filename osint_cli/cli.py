@@ -1080,7 +1080,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     psub = sp.add_subparsers(dest="phone_action", required=True)
     pn = psub.add_parser("normalize", help="E.164 + variants + prefix soft (no network)")
-    pn.add_argument("spec", help="Phone e.g. 0811-60600-613 or +62811…")
+    pn.add_argument("spec", help="Phone e.g. 0812-5550-0100 or +62811…")
     pn.set_defaults(func=cmd_phone)
     pq = psub.add_parser("queries", help="Build Layer A SERP queries")
     pq.add_argument("spec", help="Phone number")

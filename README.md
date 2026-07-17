@@ -88,7 +88,7 @@ from pathlib import Path
 from tracelock.agent import run_agent
 
 result = run_agent(
-    clues=["username:example_ig", "phone:081160600613"],
+    clues=["username:example_ig", "phone:081255500100"],
     case_path=Path("/tmp/tracelock-case.json"),
 )
 print(result.report_markdown)

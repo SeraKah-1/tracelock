@@ -32,7 +32,7 @@ def test_run_agent_emits_hitl_events(tmp_path: Path):
     case = tmp_path / "case.json"
     cfg = QwenConfig(offline=True)
     result = run_agent(
-        ["phone:0811-6060-0613", "username:demo_subject_ig"],
+        ["phone:0812-5550-0100", "username:demo_subject_ig"],
         case,
         cfg=cfg,
         on_event=make_event_callback(log),
@@ -56,7 +56,7 @@ def test_hitl_complete_cli_path(tmp_path: Path):
 
     case = tmp_path / "case.json"
     cfg = QwenConfig(offline=True)
-    run_agent(["phone:0811-6060-0613"], case, cfg=cfg)
+    run_agent(["phone:0812-5550-0100"], case, cfg=cfg)
     st = load_state(case)
     open_g = list_gates(st, status="open")
     assert open_g, "expected at least one open HITL gate from phone checklist"
@@ -96,7 +96,7 @@ def test_cockpit_api_run_and_events(tmp_path: Path):
 
         body = json.dumps(
             {
-                "clues": ["phone:0811-6060-0613", "username:demo_subject_ig"],
+                "clues": ["phone:0812-5550-0100", "username:demo_subject_ig"],
                 "offline": True,
             }
         ).encode()

@@ -11,7 +11,7 @@ Custom clues:
 ```bash
 python3 -m tracelock run --offline \
   --clue 'username:demo_subject_ig' \
-  --clue 'phone:0811-6060-0613'
+  --clue 'phone:0812-5550-0100'
 ```
 
 Live planner (Qwen Cloud / DashScope):

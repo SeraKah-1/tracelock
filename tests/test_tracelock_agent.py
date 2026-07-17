@@ -27,7 +27,7 @@ def case_path(tmp_path: Path) -> Path:
 
 def test_offline_plan_has_tools_and_hitl():
     plan = offline_plan_for_clues(
-        ["username:demo_subject_ig", "phone:0811-6060-0613"]
+        ["username:demo_subject_ig", "phone:0812-5550-0100"]
     )
     assert plan.mode == "offline"
     tools = [s.tool for s in plan.steps]
@@ -53,7 +53,7 @@ def test_plan_with_qwen_offline_env(monkeypatch):
     monkeypatch.delenv("QWEN_API_KEY", raising=False)
     cfg = QwenConfig.from_env()
     assert cfg.offline is True
-    plan = plan_with_qwen(["phone:081160600613"], cfg)
+    plan = plan_with_qwen(["phone:081255500100"], cfg)
     assert plan.mode == "offline"
     assert len(plan.steps) >= 3
 
@@ -64,13 +64,13 @@ def test_tool_init_and_report_dossier(case_path: Path):
     r1 = run_tool(
         "analyze_clues",
         case_path,
-        clues=["username:demo_subject_ig", "phone:0811-6060-0613"],
+        clues=["username:demo_subject_ig", "phone:0812-5550-0100"],
     )
     assert r1["ok"] is True
-    r2 = run_tool("normalize_phone", case_path, args={"phone": "0811-6060-0613"})
+    r2 = run_tool("normalize_phone", case_path, args={"phone": "0812-5550-0100"})
     assert r2["ok"] is True
     assert r2["record"]["e164"].startswith("+62")
-    r3 = run_tool("phone_checklist", case_path, args={"phone": "0811-6060-0613"})
+    r3 = run_tool("phone_checklist", case_path, args={"phone": "0812-5550-0100"})
     assert r3["ok"] is True
     assert r3.get("hitl") is True
     r4 = run_tool("build_dossier", case_path)
@@ -89,7 +89,7 @@ def test_run_agent_offline_end_to_end(case_path: Path, monkeypatch):
     result = run_agent(
         [
             "username:demo_subject_ig",
-            "phone:0811-6060-0613",
+            "phone:0812-5550-0100",
             "other:FK demo university fixture",
         ],
         case_path,
@@ -123,7 +123,7 @@ def test_demo_main_offline_exit_zero(tmp_path: Path, monkeypatch, capsys):
             "--case",
             str(tmp_path / "case.json"),
             "--clue",
-            "phone:0811-6060-0613",
+            "phone:0812-5550-0100",
             "--clue",
             "username:demo_subject_ig",
         ]

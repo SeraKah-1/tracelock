@@ -134,7 +134,7 @@ def offline_plan_for_clues(clues: list[str]) -> AgentPlan:
     ) or re.search(r"phone[:\s]+([+\d\-\s]+)", " ".join(clues), re.I)
     if phone_m or "phone" in joined:
         phone = phone_m.group(0) if phone_m else ""
-        phone = phone.replace("phone:", "").strip() if phone else "081160600613"
+        phone = phone.replace("phone:", "").strip() if phone else "081255500100"
         steps.append(
             PlanStep(
                 "normalize_phone",

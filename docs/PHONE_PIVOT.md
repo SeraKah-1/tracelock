@@ -5,11 +5,11 @@ See also: Documents playbook `PHONE_PIVOT_OSINT_PLAYBOOK.md`.
 ## Quick use
 
 ```bash
-osint-cli phone normalize "0811-60600-613"
-osint-cli -c case.json seed add "phone:0811-60600-613"
+osint-cli phone normalize "0812-5550-0100"
+osint-cli -c case.json seed add "phone:0812-5550-0100"
 osint-cli -c case.json plan
 osint-cli -c case.json collect --modules phone_footprint,websearch
-osint-cli phone checklist "0811-60600-613"   # Layer B operator steps
+osint-cli phone checklist "0812-5550-0100"   # Layer B operator steps
 ```
 
 ## Layers

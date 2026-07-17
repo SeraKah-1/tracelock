@@ -1,6 +1,6 @@
 """Name-pattern enumeration from usernames / display strings.
 
-Used when legal name is blank: artificial handles (cecclliia, hhoshhii) still
+Used when legal name is blank: artificial handles (llaauurraa, zzfandomxx) still
 yield given-name *hypotheses* for PDDIKTI / campus-list scoring — never treated
 as confirmed legal identity.
 """
@@ -17,7 +17,7 @@ _MULTI_CHAR = re.compile(r"(.)\1{1,}")
 
 
 def collapse_doubles(s: str) -> str:
-    """cecclliia → cecilia (collapse runs of identical letters to one)."""
+    """llaauurraa → cecilia (collapse runs of identical letters to one)."""
     if not s:
         return s
     out: list[str] = []
@@ -128,7 +128,7 @@ def patterns_from_state(state: dict[str, Any]) -> dict[str, Any]:
                 if isinstance(d, str) and d.strip():
                     for t in morph_display(d):
                         add_given(t, f"evidence:{key}")
-        # signature lines like "20\nig: cecclliia" already covered via username seeds
+        # signature lines like "20\nig: llaauurraa" already covered via username seeds
 
     # queries for public hunt (not mass brute)
     queries: list[str] = []
