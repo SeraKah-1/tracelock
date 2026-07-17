@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tracelock"
+version = "1.0.0"
+description = "TraceLock — ethical investigation autopilot agent (Qwen Cloud Track 4): ambiguous clues → tools → HITL → graded dossier"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "TraceLock contributors" }]
+keywords = [
+  "qwen",
+  "qwen-cloud",
+  "autopilot-agent",
+  "osint",
+  "hitl",
+  "dashscope",
+  "alibaba-cloud",
+]
+dependencies = []
+
+[project.optional-dependencies]
+qwen = ["openai>=1.30.0"]
+browser = ["playwright>=1.40"]
+dev = ["pytest>=7.0", "openai>=1.30.0"]
+
+[project.scripts]
+tracelock = "tracelock.demo:main"
+osint-cli = "osint_cli.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/SeraKah-1/tracelock"
+Documentation = "https://github.com/SeraKah-1/tracelock#readme"
+Hackathon = "https://qwencloud-hackathon.devpost.com/"
+
+[tool.setuptools.packages.find]
+include = ["tracelock*", "osint_cli*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

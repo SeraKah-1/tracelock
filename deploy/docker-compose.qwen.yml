@@ -1,0 +1,19 @@
+# Optional local/runtime wrapper for TraceLock demo.
+# Planner calls Alibaba DashScope (Qwen Cloud) over the network.
+# Hosting the container on Alibaba Cloud ECS is optional for extra proof photos.
+
+services:
+  tracelock:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ../:/app
+    environment:
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      QWEN_BASE_URL: ${QWEN_BASE_URL:-https://dashscope-intl.aliyuncs.com/compatible-mode/v1}
+      QWEN_MODEL: ${QWEN_MODEL:-qwen-plus}
+      TRACELOCK_OFFLINE: ${TRACELOCK_OFFLINE:-1}
+    command: >
+      bash -lc "pip install -q -e '.[qwen]' &&
+      python -m tracelock deploy-proof &&
+      python -m tracelock run --offline"

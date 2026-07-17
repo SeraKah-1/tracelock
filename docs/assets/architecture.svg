@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="560" viewBox="0 0 980 560" role="img" aria-label="TraceLock architecture">
+  <rect width="980" height="560" fill="#0b1220"/>
+  <text x="40" y="40" fill="#e8eefc" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="700">TraceLock — Autopilot Agent Architecture</text>
+  <text x="40" y="64" fill="#8aa0c8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13">Qwen Cloud Global AI Hackathon · Track 4 · Alibaba Cloud DashScope</text>
+
+  <!-- Clues -->
+  <rect x="40" y="110" width="160" height="90" rx="12" fill="#1a2744" stroke="#5b8def" stroke-width="2"/>
+  <text x="120" y="148" text-anchor="middle" fill="#e8eefc" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600">Ambiguous clues</text>
+  <text x="120" y="170" text-anchor="middle" fill="#8aa0c8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">handle · phone · text</text>
+
+  <!-- Qwen -->
+  <rect x="260" y="100" width="220" height="110" rx="12" fill="#132a1f" stroke="#3ecf8e" stroke-width="2"/>
+  <text x="370" y="138" text-anchor="middle" fill="#e8eefc" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600">Qwen Cloud / DashScope</text>
+  <text x="370" y="160" text-anchor="middle" fill="#8fd6b0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">compatible-mode API</text>
+  <text x="370" y="180" text-anchor="middle" fill="#8fd6b0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">qwen-plus planner</text>
+
+  <!-- Agent -->
+  <rect x="540" y="100" width="180" height="110" rx="12" fill="#1a2744" stroke="#c9a227" stroke-width="2"/>
+  <text x="630" y="140" text-anchor="middle" fill="#e8eefc" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600">TraceLock Agent</text>
+  <text x="630" y="162" text-anchor="middle" fill="#e6d48a" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">plan → tool loop</text>
+  <text x="630" y="184" text-anchor="middle" fill="#e6d48a" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">HITL checkpoints</text>
+
+  <!-- Tools -->
+  <rect x="260" y="280" width="460" height="120" rx="12" fill="#1a2744" stroke="#5b8def" stroke-width="2"/>
+  <text x="490" y="312" text-anchor="middle" fill="#e8eefc" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600">Tools (osint_cli wrappers)</text>
+  <text x="490" y="338" text-anchor="middle" fill="#8aa0c8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">normalize_phone · phone_queries · name_pattern_enum</text>
+  <text x="490" y="360" text-anchor="middle" fill="#8aa0c8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">analyze_clues · open_hitl · build_dossier · report</text>
+  <text x="490" y="382" text-anchor="middle" fill="#8aa0c8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">public sources only · no breach/NIK</text>
+
+  <!-- Store -->
+  <rect x="760" y="110" width="180" height="100" rx="12" fill="#2a1f14" stroke="#e09a5b" stroke-width="2"/>
+  <text x="850" y="150" text-anchor="middle" fill="#e8eefc" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600">Case store</text>
+  <text x="850" y="172" text-anchor="middle" fill="#e0b48a" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">JSON evidence chain</text>
+
+  <!-- Output -->
+  <rect x="760" y="280" width="180" height="120" rx="12" fill="#2a1420" stroke="#e05b9a" stroke-width="2"/>
+  <text x="850" y="325" text-anchor="middle" fill="#e8eefc" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600">Dossier report</text>
+  <text x="850" y="348" text-anchor="middle" fill="#e08ab0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">digital ≠ civil</text>
+  <text x="850" y="370" text-anchor="middle" fill="#e08ab0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">graded dimensions</text>
+
+  <!-- HITL human -->
+  <rect x="40" y="280" width="160" height="120" rx="12" fill="#241a2e" stroke="#b07def" stroke-width="2"/>
+  <text x="120" y="325" text-anchor="middle" fill="#e8eefc" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600">Operator HITL</text>
+  <text x="120" y="348" text-anchor="middle" fill="#c4a0ef" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">browser · Layer-B</text>
+  <text x="120" y="370" text-anchor="middle" fill="#c4a0ef" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">civil lock confirm</text>
+
+  <!-- arrows -->
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#8aa0c8"/>
+    </marker>
+  </defs>
+  <line x1="200" y1="155" x2="255" y2="155" stroke="#8aa0c8" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="480" y1="155" x2="535" y2="155" stroke="#8aa0c8" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="720" y1="155" x2="755" y2="155" stroke="#8aa0c8" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="630" y1="210" x2="490" y2="275" stroke="#8aa0c8" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="260" y1="340" x2="205" y2="340" stroke="#b07def" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="720" y1="340" x2="755" y2="340" stroke="#8aa0c8" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="850" y1="210" x2="850" y2="275" stroke="#8aa0c8" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <text x="40" y="460" fill="#8aa0c8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">API base: https://dashscope-intl.aliyuncs.com/compatible-mode/v1 · Auth: DASHSCOPE_API_KEY · Offline twin when unset</text>
+  <text x="40" y="485" fill="#8aa0c8" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">Proof module: tracelock/qwen_client.py · Deploy notes: docs/ALIBABA_QWEN_DEPLOYMENT.md</text>
+  <text x="40" y="520" fill="#5a6d8c" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">TraceLock v1.0 · MIT License · Public-source OSINT only</text>
+</svg>

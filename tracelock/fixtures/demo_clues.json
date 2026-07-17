@@ -1,0 +1,14 @@
+{
+  "description": "Synthetic demo subject — not a real person. Safe for public repo fixtures.",
+  "clues": [
+    "username:demo_subject_ig",
+    "username:demo_subject_tt",
+    "other:FK demo university maba cohort fixture 2025",
+    "phone:0811-6060-0613",
+    "other:ambiguous dual-handle research — legal name blank on purpose"
+  ],
+  "policy": {
+    "no_real_pii": true,
+    "public_demo_only": true
+  }
+}
