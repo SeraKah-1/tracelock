@@ -68,6 +68,18 @@ When a gate opens, an operator completes it in a real browser / app, then resume
 
 ---
 
+## Operator cockpit & events
+
+```bash
+python3 -m tracelock serve --port 8765
+python3 -m tracelock run --offline --events-out ./events.jsonl
+python3 -m tracelock hitl list --case ./case.json
+python3 -m tracelock hitl complete --case ./case.json --gate g1 \
+  --value '{"operator":"completed challenge"}'
+```
+
+See [`COCKPIT.md`](COCKPIT.md). Host coding agents keep their own websearch/shell; cockpit only drives TraceLock + HITL.
+
 ## Environment
 
 | Variable | Purpose |

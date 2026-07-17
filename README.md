@@ -71,6 +71,13 @@ python3 -m tracelock run --offline \
   --clue 'username:example_ig' \
   --clue 'phone:0812xxxxxxx'
 
+# stream events to JSONL (for host agents / demos)
+python3 -m tracelock run --offline --events-out /tmp/tracelock-events.jsonl
+
+# operator cockpit: live logs + HITL gate panel (captcha → human, never auto-solve)
+python3 -m tracelock serve --port 8765
+# → http://127.0.0.1:8765/
+
 # live Qwen planner
 export DASHSCOPE_API_KEY=sk-...
 python3 -m tracelock run --clue 'username:example_ig'
@@ -87,7 +94,7 @@ result = run_agent(
 print(result.report_markdown)
 ```
 
-More: [`docs/USAGE.md`](docs/USAGE.md) · scenarios: [`docs/SCENARIOS.md`](docs/SCENARIOS.md)
+More: [`docs/USAGE.md`](docs/USAGE.md) · cockpit: [`docs/COCKPIT.md`](docs/COCKPIT.md) · scenarios: [`docs/SCENARIOS.md`](docs/SCENARIOS.md)
 
 ---
 

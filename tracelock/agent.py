@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from tracelock.qwen_client import AgentPlan, QwenConfig, plan_with_qwen
 from tracelock.tools import REGISTRY, run_tool
@@ -86,17 +86,50 @@ def _summarize_result(result: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _emit(
+    on_event: Optional[Callable[..., None]],
+    kind: str,
+    message: str = "",
+    **data: Any,
+) -> None:
+    if on_event is None:
+        return
+    try:
+        on_event(kind, message, **data)
+    except TypeError:
+        try:
+            on_event(kind, message)  # type: ignore[misc]
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
 def run_agent(
     clues: list[str],
     case_path: Path | str,
     *,
     cfg: Optional[QwenConfig] = None,
     max_steps: int = 20,
+    on_event: Optional[Callable[..., None]] = None,
 ) -> AgentRunResult:
-    """End-to-end autopilot loop: plan → tools → structured dossier report."""
+    """End-to-end autopilot loop: plan → tools → structured dossier report.
+
+    Optional ``on_event(kind, message, **data)`` streams progress for cockpit/logs.
+    Existing callers without ``on_event`` are unchanged.
+    """
     case_path = Path(case_path)
     cfg = cfg or QwenConfig.from_env()
+    _emit(on_event, "run_start", "Autopilot starting", clues=list(clues), case=str(case_path))
     plan: AgentPlan = plan_with_qwen(clues, cfg)
+    _emit(
+        on_event,
+        "plan",
+        plan.summary or "Plan ready",
+        mode=plan.mode,
+        steps=[s.tool for s in plan.steps],
+        hitl_checkpoints=list(plan.hitl_checkpoints),
+    )
 
     traces: list[ToolTrace] = []
     errors: list[str] = []
@@ -118,6 +151,15 @@ def run_agent(
         ordered_steps.append(PlanStep("report", {}, "Emit dossier report"))
 
     for i, step in enumerate(ordered_steps[:max_steps]):
+        _emit(
+            on_event,
+            "tool_start",
+            f"{step.tool}: {step.reason}",
+            step_index=i,
+            tool=step.tool,
+            args=step.args,
+            reason=step.reason,
+        )
         if step.tool not in REGISTRY:
             errors.append(f"unknown tool skipped: {step.tool}")
             traces.append(
@@ -129,6 +171,7 @@ def run_agent(
                     result={"ok": False, "error": "unknown tool"},
                 )
             )
+            _emit(on_event, "tool_end", f"{step.tool} skipped", tool=step.tool, ok=False)
             continue
         result = run_tool(step.tool, case_path, clues=clues, args=step.args)
         traces.append(
@@ -142,11 +185,36 @@ def run_agent(
         )
         if not result.get("ok"):
             errors.append(f"{step.tool}: {result.get('error')}")
+        # Surface HITL gates as first-class events (captcha / Layer-B / portal)
+        if result.get("zero_autonomy") or result.get("hitl") or result.get("gate"):
+            gate = result.get("gate") if isinstance(result.get("gate"), dict) else {}
+            _emit(
+                on_event,
+                "hitl_open",
+                result.get("reason")
+                or (gate.get("why") if gate else "Zero-autonomy gate opened"),
+                tool=step.tool,
+                gate=gate,
+                zero_autonomy=True,
+                operator_action=(
+                    "Open URL in a real browser if provided; complete captcha/challenge; "
+                    "then complete the gate (cockpit or: tracelock hitl complete)."
+                ),
+            )
         if step.tool == "report":
             report_md = result.get("markdown") or ""
             dossier = result.get("dossier") or dossier
         if step.tool == "build_dossier" and result.get("dossier"):
             dossier = result["dossier"]
+        _emit(
+            on_event,
+            "tool_end",
+            f"{step.tool} → {'OK' if result.get('ok') else 'FAIL'}",
+            step_index=i,
+            tool=step.tool,
+            ok=bool(result.get("ok")),
+            summary=_summarize_result(result),
+        )
 
     # If report never produced markdown, force it
     if not report_md:
@@ -162,9 +230,19 @@ def run_agent(
         )
         report_md = result.get("markdown") or ""
         dossier = result.get("dossier") or dossier
+        _emit(on_event, "tool_end", "report forced", tool="report", ok=bool(result.get("ok")))
 
     ok = bool(report_md.strip()) and bool(traces) and not (
         len(errors) == len(traces)
+    )
+    _emit(
+        on_event,
+        "run_end",
+        "Autopilot finished",
+        ok=ok,
+        errors=errors,
+        report_chars=len(report_md or ""),
+        case=str(case_path),
     )
     return AgentRunResult(
         mode=plan.mode,
