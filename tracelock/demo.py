@@ -13,6 +13,7 @@ from tracelock import __pitch__, __product__, __version__
 from tracelock.agent import format_run_text, run_agent
 from tracelock.events import EventLog, make_event_callback
 from tracelock.footprint import footprint_brief, parse_freeform_clue
+from tracelock.loop import continue_case, investigate_continuous
 from tracelock.qwen_client import QwenConfig, deployment_fingerprint
 
 
@@ -125,6 +126,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fp_p.add_argument("text", nargs="+", help="Short clue phrase")
 
+    inv_p = sub.add_parser(
+        "investigate",
+        help="Continuous multi-wave OSINT (anti-lazy): plan→act→observe→replan until done",
+    )
+    inv_p.add_argument("text", nargs="+", help="Short clue / subject phrase")
+    inv_p.add_argument("--case", default=None)
+    inv_p.add_argument("--max-waves", type=int, default=5)
+    inv_p.add_argument("--min-waves", type=int, default=2)
+    inv_p.add_argument("--no-network", action="store_true")
+    inv_p.add_argument("--offline", action="store_true")
+    inv_p.add_argument("--json-out", default=None)
+    inv_p.add_argument("--quiet", action="store_true")
+
+    cont_p = sub.add_parser(
+        "continue",
+        help="Continue an existing case: more waves from open gaps",
+    )
+    cont_p.add_argument("--case", required=True, help="Existing case JSON path")
+    cont_p.add_argument("--max-waves", type=int, default=2)
+    cont_p.add_argument("--no-network", action="store_true")
+    cont_p.add_argument("--json-out", default=None)
+    cont_p.add_argument("--quiet", action="store_true")
+
     serve_p = sub.add_parser(
         "serve",
         help="Operator cockpit UI: live logs + HITL gate panel (stdlib HTTP)",
@@ -200,6 +224,76 @@ def main(argv: list[str] | None = None) -> int:
         brief = footprint_brief(clues)
         print(json.dumps(brief, indent=2, ensure_ascii=False))
         return 0
+
+    if args.cmd == "investigate":
+        phrase = " ".join(args.text)
+        if args.case:
+            case_path = Path(args.case)
+        else:
+            case_path = Path(tempfile.mkdtemp(prefix="tracelock-inv-")) / "case.json"
+        no_net = bool(args.no_network or args.offline)
+        if no_net:
+            os.environ["TRACELOCK_NO_NETWORK"] = "1"
+            os.environ["TRACELOCK_OFFLINE"] = "1"
+        else:
+            os.environ.pop("TRACELOCK_NO_NETWORK", None)
+            os.environ.pop("TRACELOCK_OFFLINE", None)
+        loop = investigate_continuous(
+            phrase,
+            case_path,
+            max_waves=int(args.max_waves),
+            min_waves=int(args.min_waves),
+        )
+        payload = loop.to_dict()
+        payload["input_phrase"] = phrase
+        payload["host_agent_note"] = (
+            "Continuous loop: wave1 full plan+collect, then deepen until gaps/HITL-only. "
+            "Host AI should NOT stop after one shell command — use `continue --case` if gaps remain."
+        )
+        if args.json_out:
+            Path(args.json_out).write_text(
+                json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
+        if args.quiet:
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
+        else:
+            print(f"## Continuous investigate: {phrase}")
+            print(f"Waves={len(loop.waves)} stop={loop.stop_reason} case={loop.case_path}")
+            for w in loop.waves:
+                print(f"  wave{w.wave}: tools={w.tools_run} gaps={w.open_gaps}")
+            print()
+            print(loop.final_report[:8000] if loop.final_report else "(no report)")
+            print(
+                json.dumps(
+                    {
+                        "ok": loop.ok,
+                        "waves": len(loop.waves),
+                        "stop_reason": loop.stop_reason,
+                        "case_path": loop.case_path,
+                        "checklist": loop.checklist_coverage,
+                    },
+                    indent=2,
+                )
+            )
+        return 0 if loop.ok else 1
+
+    if args.cmd == "continue":
+        case_path = Path(args.case)
+        if args.no_network:
+            os.environ["TRACELOCK_NO_NETWORK"] = "1"
+        loop = continue_case(case_path, max_extra_waves=int(args.max_waves))
+        payload = loop.to_dict()
+        if args.json_out:
+            Path(args.json_out).write_text(
+                json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
+        if args.quiet:
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
+        else:
+            print(f"## Continue case {case_path}")
+            print(f"stop={loop.stop_reason} waves={len(loop.waves)}")
+            print((loop.final_report or "")[:6000])
+        return 0 if loop.ok else 1
 
     if args.cmd == "osint":
         phrase = " ".join(args.text)

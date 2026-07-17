@@ -77,8 +77,12 @@ python3 -m tracelock run --offline --events-out /tmp/tracelock-events.jsonl
 # short prompt → full OSINT (LIVE public tools; NO DashScope key required)
 python3 -m tracelock osint @demo_subject_ig
 python3 -m tracelock osint "name:Example Public Figure"
-python3 -m tracelock osint "phone:0812-5550-0100"
-# Host AI agents: use the line above — do NOT pass --offline for real work
+
+# continuous multi-wave (anti-lazy — like coding agent loops)
+python3 -m tracelock investigate "name:Example Public Figure"
+python3 -m tracelock continue --case /path/to/case.json
+
+# Host AI: prefer `investigate`, never `--offline` for real work (see AGENTS.md)
 python3 -m tracelock footprint @demo_subject_ig   # preview checklist only
 
 # operator cockpit: live logs + HITL gate panel (captcha → human, never auto-solve)
@@ -101,7 +105,7 @@ result = run_agent(
 print(result.report_markdown)
 ```
 
-More: [`docs/USAGE.md`](docs/USAGE.md) · footprint: [`docs/DIGITAL_FOOTPRINT.md`](docs/DIGITAL_FOOTPRINT.md) · cockpit: [`docs/COCKPIT.md`](docs/COCKPIT.md) · scenarios: [`docs/SCENARIOS.md`](docs/SCENARIOS.md)
+More: [`docs/USAGE.md`](docs/USAGE.md) · continuous: [`docs/CONTINUOUS_OSINT.md`](docs/CONTINUOUS_OSINT.md) · footprint: [`docs/DIGITAL_FOOTPRINT.md`](docs/DIGITAL_FOOTPRINT.md) · [`AGENTS.md`](AGENTS.md)
 
 ---
 
