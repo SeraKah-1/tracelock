@@ -1,6 +1,6 @@
 """TraceLock — ethical investigation autopilot (Qwen Cloud Track 4)."""
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 __product__ = "TraceLock"
 __pitch__ = (
     "Autopilot agent that turns ambiguous public clues into graded identity dossiers "

@@ -74,9 +74,11 @@ python3 -m tracelock run --offline \
 # stream events to JSONL (for host agents / demos)
 python3 -m tracelock run --offline --events-out /tmp/tracelock-events.jsonl
 
-# short prompt → full digital-footprint OSINT (no long checklist paste)
+# short prompt → full OSINT (LIVE public tools; NO DashScope key required)
 python3 -m tracelock osint @demo_subject_ig
+python3 -m tracelock osint "name:Example Public Figure"
 python3 -m tracelock osint "phone:0812-5550-0100"
+# Host AI agents: use the line above — do NOT pass --offline for real work
 python3 -m tracelock footprint @demo_subject_ig   # preview checklist only
 
 # operator cockpit: live logs + HITL gate panel (captcha → human, never auto-solve)

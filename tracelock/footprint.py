@@ -177,17 +177,28 @@ def parse_freeform_clue(text: str) -> list[str]:
         ):
             add(part)
 
-    # residual free text as name or other
+    # residual free text as name or other (skip if already fully typed seeds)
+    already_typed = any(
+        c.lower().startswith(
+            ("name:", "nama:", "username:", "phone:", "url:", "email:", "nim:")
+        )
+        for c in clues
+    )
     residual = raw
     for m in _URL_RE.finditer(raw):
         residual = residual.replace(m.group(0), " ")
     for m in _PHONE_RE.finditer(raw):
         residual = residual.replace(m.group(0), " ")
     residual = _AT_RE.sub(" ", residual)
+    residual = re.sub(
+        r"\b(?:name|nama|username|phone|url|email|nim|other)\s*:\s*[^\n,;]+",
+        " ",
+        residual,
+        flags=re.I,
+    )
     residual = re.sub(r"\b(?:ig|instagram|tiktok|tt|threads)\s*[:=/]\s*@?\w+", " ", residual, flags=re.I)
     residual = re.sub(r"\s+", " ", residual).strip(" :,-")
-    # drop short noise
-    if residual and len(residual) >= 3:
+    if not already_typed and residual and len(residual) >= 3:
         if re.match(r"^[A-Za-z][A-Za-z\s\.\']{2,60}$", residual):
             add(f"name:{residual}")
         elif residual.lower() not in (

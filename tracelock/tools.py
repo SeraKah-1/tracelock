@@ -5,7 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
+import os
+
 from osint_cli.clue_analyze import analyze_clues, apply_analysis_to_state
+from osint_cli.collect import run_collect
 from osint_cli.hitl import ensure_hitl, open_gate
 from osint_cli.name_pattern import morph_username, patterns_from_state
 from osint_cli.normalize import add_evidence, add_seed
@@ -17,6 +20,14 @@ from osint_cli.phone_pivot import (
 from osint_cli.state import load_state, new_investigation, save_state
 
 ToolFn = Callable[..., dict[str, Any]]
+
+
+def _network_disabled() -> bool:
+    return os.environ.get("TRACELOCK_NO_NETWORK", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
 
 
 def _ev(
@@ -212,6 +223,65 @@ def tool_plan_sources(case_path: Path, **_kwargs: Any) -> dict[str, Any]:
     return {"ok": True, "tool": "plan_sources", "sources": sources}
 
 
+def tool_collect_public(
+    case_path: Path,
+    clues: list[str] | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Live public collection via osint_cli (websearch, username_enum, gov_id, …).
+
+    Default is **online public HTTP** — does NOT need DashScope/Qwen.
+    Host AI agents should use this path; set TRACELOCK_NO_NETWORK=1 only for CI fixtures.
+    """
+    state = load_state(case_path)
+    # ensure seeds from clues
+    for raw in clues or []:
+        try:
+            add_seed(state, raw)
+        except Exception:
+            pass
+    args = kwargs.get("args") or {}
+    mods = args.get("modules")
+    if isinstance(mods, str):
+        modules = [m.strip() for m in mods.split(",") if m.strip()]
+    elif isinstance(mods, list) and mods:
+        modules = [str(m) for m in mods]
+    else:
+        # smart default from seeds
+        has_user = any(s.get("type") == "username" for s in state.get("seeds") or [])
+        has_name = any(s.get("type") == "name" for s in state.get("seeds") or [])
+        has_phone = any(s.get("type") == "phone" for s in state.get("seeds") or [])
+        has_url = any(s.get("type") == "url" for s in state.get("seeds") or [])
+        modules = ["websearch"]
+        if has_name:
+            modules = ["websearch", "gov_id", "pddikti"]
+        if has_user:
+            modules = list(dict.fromkeys(modules + ["username_enum", "name_pattern_enum"]))
+        if has_url:
+            modules = list(dict.fromkeys(["primary_page"] + modules))
+        if has_phone:
+            modules = list(dict.fromkeys(modules + ["phone_footprint"]))
+    offline = _network_disabled() or bool(args.get("offline"))
+    result = run_collect(state, modules=modules, offline=offline)
+    save_state(state, case_path)
+    types = [e.get("type") for e in state.get("evidence") or []]
+    web_hits = sum(1 for t in types if t == "web_hit")
+    return {
+        "ok": True,
+        "tool": "collect_public",
+        "modules": result.get("modules_run") or modules,
+        "offline": offline,
+        "network": not offline,
+        "evidence_count": len(state.get("evidence") or []),
+        "web_hit_count": web_hits,
+        "note": (
+            "Live public collection (no DashScope required)"
+            if not offline
+            else "NO_NETWORK fixture mode — results are not live SERP"
+        ),
+    }
+
+
 def tool_digital_footprint(
     case_path: Path,
     clues: list[str] | None = None,
@@ -347,8 +417,14 @@ def tool_build_dossier(case_path: Path, **_kwargs: Any) -> dict[str, Any]:
         "phone": {"status": "open", "signals": []},
         "education": {"status": "open", "signals": []},
         "risk_notes": {
-            "status": "clean_public_demo",
-            "signals": ["Offline/demo path: no adverse public material claimed"],
+            "status": "open",
+            "signals": [
+                (
+                    "NO_NETWORK fixture path — not live SERP"
+                    if _network_disabled()
+                    else "Public-source run: no breach/NIK modules; adverse claims need multi-source grade"
+                )
+            ],
         },
     }
     for s in seeds:
@@ -368,16 +444,27 @@ def tool_build_dossier(case_path: Path, **_kwargs: Any) -> dict[str, Any]:
             )
     for ev in evidence:
         t = (ev.get("type") if isinstance(ev, dict) else "") or ""
+        val = ev.get("value") if isinstance(ev.get("value"), dict) else {}
         if "phone" in t:
             dims["phone"]["status"] = "partial"
             dims["phone"]["signals"].append(t)
         if "name_pattern" in t or "digital_footprint" in t or "username_platform" in t:
             dims["identity_digital"]["status"] = "partial"
             if "username_platform" in t:
-                val = ev.get("value") if isinstance(ev.get("value"), dict) else {}
                 dims["identity_digital"]["signals"].append(
                     f"platform hit soft: {val.get('platform')} @{val.get('handle')}"
                 )
+        if t == "web_hit":
+            dims["identity_digital"]["status"] = "partial"
+            title = val.get("title") or val.get("snippet") or ev.get("source_url") or "web_hit"
+            dims["identity_digital"]["signals"].append(f"web: {str(title)[:120]}")
+            # public-figure names often appear in civil-adjacent open sources
+            if any(s.get("type") == "name" for s in seeds):
+                dims["identity_civil"]["status"] = "partial"
+                dims["identity_civil"]["signals"].append(f"public mention: {str(title)[:100]}")
+        if t in ("public_record", "gov_hit", "pddikti") or "gov" in t:
+            dims["identity_civil"]["status"] = "partial"
+            dims["identity_civil"]["signals"].append(t)
     fp = state.get("digital_footprint") or {}
     if fp.get("handles"):
         dims["identity_digital"]["status"] = "partial"
@@ -477,6 +564,7 @@ REGISTRY: dict[str, ToolFn] = {
     "phone_checklist": tool_phone_checklist,
     "name_pattern_enum": tool_name_pattern_enum,
     "digital_footprint": tool_digital_footprint,
+    "collect_public": tool_collect_public,
     "plan_sources": tool_plan_sources,
     "open_hitl": tool_open_hitl,
     "build_dossier": tool_build_dossier,

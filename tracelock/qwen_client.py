@@ -31,8 +31,12 @@ class QwenConfig:
     api_key: str = ""
     base_url: str = DEFAULT_BASE_URL
     model: str = DEFAULT_MODEL
+    # planner: use Qwen API only when key present AND offline is False
+    # Missing key is NOT an error — local deterministic planner is first-class
+    # (host AI agents like Claude/Grok/Qwen Code already plan; tools do the work).
     offline: bool = False
-    provider: str = "alibaba-cloud-dashscope"
+    provider: str = "local-planner"
+    no_network: bool = False
 
     @classmethod
     def from_env(cls) -> "QwenConfig":
@@ -40,22 +44,37 @@ class QwenConfig:
             os.environ.get("DASHSCOPE_API_KEY", "").strip()
             or os.environ.get("QWEN_API_KEY", "").strip()
         )
-        offline_flag = os.environ.get("TRACELOCK_OFFLINE", "").strip() in (
+        # TRACELOCK_OFFLINE / TRACELOCK_NO_NETWORK = no live HTTP collection (CI only)
+        no_net = os.environ.get("TRACELOCK_NO_NETWORK", "").strip().lower() in (
             "1",
             "true",
-            "TRUE",
             "yes",
-            "YES",
+        ) or os.environ.get("TRACELOCK_OFFLINE", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        # Force Qwen planner only when explicitly requested
+        force_qwen = os.environ.get("TRACELOCK_PLANNER", "").strip().lower() in (
+            "qwen",
+            "dashscope",
+            "live",
         )
         base = os.environ.get("QWEN_BASE_URL", DEFAULT_BASE_URL).strip() or DEFAULT_BASE_URL
         model = os.environ.get("QWEN_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
-        offline = offline_flag or not key
+        # Default: local planner (no API key required). Qwen only if key + force or key alone with TRACELOCK_USE_QWEN=1
+        use_qwen = bool(key) and (
+            force_qwen
+            or os.environ.get("TRACELOCK_USE_QWEN", "").strip().lower() in ("1", "true", "yes")
+        )
+        offline = not use_qwen  # offline here means "don't call Qwen API"
         return cls(
-            api_key=key,
+            api_key=key if use_qwen else "",
             base_url=base,
-            model=model,
+            model=model if use_qwen else "local-planner",
             offline=offline,
-            provider="alibaba-cloud-dashscope",
+            provider="alibaba-cloud-dashscope" if use_qwen else "local-planner",
+            no_network=no_net,
         )
 
 
@@ -114,6 +133,7 @@ Available tools:
 - phone_checklist: {"phone": "..."}
 - name_pattern_enum: {}  (if handles without legal name)
 - digital_footprint: {"quick": true}  (cross-platform username enum + SERP pack + full checklist)
+- collect_public: {"modules": "websearch,gov_id,username_enum"}  (LIVE public HTTP — no DashScope key)
 - plan_sources: {}
 - open_hitl: {"template": "pddikti|phone_layer_b|browser_challenge", "reason": "..."}
 - build_dossier: {}
@@ -190,6 +210,22 @@ def offline_plan_for_clues(clues: list[str]) -> AgentPlan:
             )
         )
 
+    # LIVE public collection — core value without any LLM API key
+    collect_mods = ["websearch"]
+    if "name:" in joined or "nama:" in joined:
+        collect_mods = ["websearch", "gov_id", "pddikti"]
+    if has_handle:
+        collect_mods = list(dict.fromkeys(collect_mods + ["username_enum"]))
+    if "phone" in joined:
+        collect_mods = list(dict.fromkeys(collect_mods + ["phone_footprint"]))
+    steps.append(
+        PlanStep(
+            "collect_public",
+            {"modules": ",".join(collect_mods)},
+            "Live public HTTP collection (websearch/gov/username) — no DashScope required",
+        )
+    )
+
     steps.append(
         PlanStep(
             "plan_sources",
@@ -198,7 +234,7 @@ def offline_plan_for_clues(clues: list[str]) -> AgentPlan:
         )
     )
 
-    if any(x in joined for x in ("nim", "pddikti", "mahasiswa", "fk ", "unri")):
+    if any(x in joined for x in ("nim", "pddikti", "mahasiswa", "fk ", "unri", "name:", "nama:")):
         steps.append(
             PlanStep(
                 "open_hitl",
@@ -206,7 +242,7 @@ def offline_plan_for_clues(clues: list[str]) -> AgentPlan:
                     "template": "pddikti",
                     "reason": "Portal may present Cloudflare — never captcha farm",
                 },
-                "Zero-autonomy: browser wall requires human",
+                "Zero-autonomy: browser wall requires human for civil claims",
             )
         )
         hitl.append("PDDIKTI / browser challenge — complete gate before civil claims")
@@ -228,17 +264,17 @@ def offline_plan_for_clues(clues: list[str]) -> AgentPlan:
     )
 
     return AgentPlan(
-        mode="offline",
-        model="offline-stub",
-        provider="alibaba-cloud-dashscope",
+        mode="local",
+        model="local-planner",
+        provider="local-planner",
         base_url=DEFAULT_BASE_URL,
         summary=(
-            "Digital footprint autopilot: normalize clues, cross-platform enum, "
-            "phone Layer-A/B policy, HITL walls, graded dossier (digital ≠ civil)."
+            "Local planner + live public collection: footprint enum, websearch/gov, "
+            "HITL walls, graded dossier. Host AI does not need DashScope API key."
         ),
         steps=steps,
         hitl_checkpoints=hitl,
-        raw_text="offline_plan_for_clues",
+        raw_text="local_plan_for_clues",
     )
 
 
@@ -271,12 +307,22 @@ def _parse_plan_json(text: str, cfg: QwenConfig) -> AgentPlan:
 
 
 def plan_with_qwen(clues: list[str], cfg: Optional[QwenConfig] = None) -> AgentPlan:
-    """Plan the investigation. Uses live Qwen when key present; else offline stub."""
+    """Plan investigation steps.
+
+    Default = **local planner** (full tool sequence, live collection tools).
+    Qwen Cloud only when TRACELOCK_USE_QWEN=1 and DASHSCOPE_API_KEY set.
+    Host agents (Claude/Grok/Qwen Code) should rely on local planner + collect_public.
+    """
     cfg = cfg or QwenConfig.from_env()
-    if cfg.offline:
+    if cfg.offline or not cfg.api_key:
         plan = offline_plan_for_clues(clues)
         plan.base_url = cfg.base_url
-        plan.provider = cfg.provider
+        plan.provider = cfg.provider or "local-planner"
+        if cfg.no_network:
+            plan.summary = (
+                (plan.summary or "")
+                + " [TRACELOCK_NO_NETWORK: collection fixtures only]"
+            )
         return plan
 
     user = (

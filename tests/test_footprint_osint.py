@@ -37,7 +37,9 @@ def test_offline_plan_includes_digital_footprint():
     plan = offline_plan_for_clues(["username:demo_subject_ig"])
     tools = [s.tool for s in plan.steps]
     assert "digital_footprint" in tools
+    assert "collect_public" in tools
     assert "report" in tools
+    assert plan.mode in ("local", "offline")
 
 
 def test_digital_footprint_tool_quick(tmp_path: Path):
@@ -62,11 +64,12 @@ def test_digital_footprint_tool_quick(tmp_path: Path):
 
 def test_osint_cli_short_prompt():
     td = Path(tempfile.mkdtemp())
+    # --no-network for CI speed; production host agents omit this flag
     code = demo_main(
         [
             "osint",
             "@demo_subject_ig",
-            "--offline",
+            "--no-network",
             "--quiet",
             "--case",
             str(td / "case.json"),
@@ -81,7 +84,34 @@ def test_osint_cli_short_prompt():
     assert any("demo_subject_ig" in c for c in data.get("expanded_clues") or [])
     tools = [t["tool"] for t in data.get("tool_traces") or []]
     assert "digital_footprint" in tools
+    assert "collect_public" in tools
     assert "TraceLock" in (data.get("report_markdown") or "")
+
+
+def test_name_only_plan_includes_live_collect():
+    plan = offline_plan_for_clues(["name:Jordan Sample Subject"])
+    tools = [s.tool for s in plan.steps]
+    assert "collect_public" in tools
+    assert any(
+        "websearch" in str(s.args)
+        for s in plan.steps
+        if s.tool == "collect_public"
+    )
+
+
+def test_local_planner_default_no_dashscope_required():
+    from tracelock.qwen_client import QwenConfig
+    import os
+
+    os.environ.pop("DASHSCOPE_API_KEY", None)
+    os.environ.pop("QWEN_API_KEY", None)
+    os.environ.pop("TRACELOCK_USE_QWEN", None)
+    os.environ.pop("TRACELOCK_OFFLINE", None)
+    os.environ.pop("TRACELOCK_NO_NETWORK", None)
+    cfg = QwenConfig.from_env()
+    assert cfg.provider == "local-planner"
+    assert cfg.offline is True  # means "don't call Qwen API"
+
 
 
 def test_handles_and_serp():

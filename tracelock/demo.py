@@ -62,7 +62,17 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument(
         "--offline",
         action="store_true",
-        help="Force offline planner (ignore API key)",
+        help="DEPRECATED alias: no-network fixture mode (CI only — not for real OSINT)",
+    )
+    run_p.add_argument(
+        "--no-network",
+        action="store_true",
+        help="Disable live HTTP collection (fixtures only)",
+    )
+    run_p.add_argument(
+        "--use-qwen",
+        action="store_true",
+        help="Use DashScope Qwen as planner (needs DASHSCOPE_API_KEY). Default: local planner.",
     )
     run_p.add_argument(
         "--json-out",
@@ -90,16 +100,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Short clue phrase (no long prompt needed), e.g. @demo_subject_ig or phone:08…",
     )
     osint_p.add_argument("--case", default=None)
-    osint_p.add_argument("--offline", action="store_true", default=True)
-    osint_p.add_argument("--live", action="store_true", help="Use Qwen planner if key set")
+    osint_p.add_argument(
+        "--no-network",
+        action="store_true",
+        help="CI fixture only — skip live SERP (NOT default)",
+    )
+    osint_p.add_argument(
+        "--offline",
+        action="store_true",
+        help="Alias for --no-network (discouraged for real OSINT)",
+    )
+    osint_p.add_argument(
+        "--use-qwen",
+        action="store_true",
+        help="Optional: DashScope planner (host AI usually does NOT need this)",
+    )
     osint_p.add_argument("--json-out", default=None)
     osint_p.add_argument("--events-out", default=None)
     osint_p.add_argument("--quiet", action="store_true")
-    osint_p.add_argument(
-        "--full-probe",
-        action="store_true",
-        help="Slower full platform set (default quick set for reliability)",
-    )
 
     fp_p = sub.add_parser(
         "footprint",
@@ -146,9 +164,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    # bare invocation → run offline demo
+    # bare invocation → short help for host agents
     if not argv:
-        argv = ["run", "--offline"]
+        argv = ["osint", "--help"]
 
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -194,27 +212,35 @@ def main(argv: list[str] | None = None) -> int:
         else:
             tmp = Path(tempfile.mkdtemp(prefix="tracelock-osint-"))
             case_path = tmp / "case.json"
-        offline = not bool(args.live)
-        if offline:
+        # Default: LIVE public collection + local planner (no DashScope needed)
+        no_net = bool(args.no_network or args.offline)
+        if no_net:
+            os.environ["TRACELOCK_NO_NETWORK"] = "1"
             os.environ["TRACELOCK_OFFLINE"] = "1"
+        else:
+            os.environ.pop("TRACELOCK_NO_NETWORK", None)
+            # do NOT set TRACELOCK_OFFLINE — that disables live collection
+            os.environ.pop("TRACELOCK_OFFLINE", None)
+        if args.use_qwen:
+            os.environ["TRACELOCK_USE_QWEN"] = "1"
+        else:
+            os.environ.pop("TRACELOCK_USE_QWEN", None)
         cfg = QwenConfig.from_env()
-        if offline:
-            cfg = QwenConfig(
-                api_key="",
-                base_url=cfg.base_url,
-                model=cfg.model,
-                offline=True,
-            )
         on_event = None
         if args.events_out:
             elog = EventLog(jsonl_path=Path(args.events_out))
             on_event = make_event_callback(elog)
-        # Expand plan quality: short prompt → full checklist via digital_footprint tool
         result = run_agent(clues, case_path, cfg=cfg, on_event=on_event)
         payload = result.to_dict()
         payload["input_phrase"] = phrase
         payload["expanded_clues"] = clues
         payload["short_prompt_mode"] = True
+        payload["network_collection"] = not no_net
+        payload["planner"] = cfg.provider
+        payload["host_agent_note"] = (
+            "DashScope API key is optional. Host AI (Claude/Grok/Qwen Code) plans; "
+            "TraceLock runs public tools. Do not force --offline for real OSINT."
+        )
         if args.json_out:
             Path(args.json_out).write_text(
                 json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
@@ -226,6 +252,7 @@ def main(argv: list[str] | None = None) -> int:
             print("## Expanded clues (from short prompt)")
             for c in clues:
                 print(f"  - {c}")
+            print(f"## Planner: {cfg.provider} | network_collection={not no_net}")
             print()
             print(format_run_text(result))
             print(
@@ -233,6 +260,8 @@ def main(argv: list[str] | None = None) -> int:
                     {
                         "ok": result.ok,
                         "mode": result.mode,
+                        "planner": cfg.provider,
+                        "network_collection": not no_net,
                         "expanded_clues": clues,
                         "tools_run": [t.tool for t in result.tool_traces],
                         "case_path": result.case_path,
@@ -271,8 +300,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 2
 
-    if args.offline:
+    if args.offline or args.no_network:
+        os.environ["TRACELOCK_NO_NETWORK"] = "1"
         os.environ["TRACELOCK_OFFLINE"] = "1"
+    else:
+        os.environ.pop("TRACELOCK_NO_NETWORK", None)
+        os.environ.pop("TRACELOCK_OFFLINE", None)
+    if getattr(args, "use_qwen", False):
+        os.environ["TRACELOCK_USE_QWEN"] = "1"
 
     clues = args.clues if args.clues else _load_fixture_clues()
     if args.case:
