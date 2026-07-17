@@ -66,6 +66,20 @@ Architecture diagram: [`docs/assets/architecture.svg`](docs/assets/architecture.
 
 ---
 
+## Public repo
+
+**https://github.com/SeraKah-1/tracelock** (MIT · public)
+
+## How to use (short)
+
+| Mode | Who drives it | Command / idea |
+|------|----------------|----------------|
+| **CLI demo** | You | `python3 -m tracelock run --offline` |
+| **AI agent** | Claude/Cursor/Grok with shell | Ask agent to run that command + summarize dossier |
+| **Your code** | Python host agent | `from tracelock.agent import run_agent` |
+
+Full guide: **[`docs/HOW_TO_USE.md`](docs/HOW_TO_USE.md)** — this is a **tool + autopilot CLI**, not a chat website. Agents call tools; humans still clear HITL gates (login walls, Layer-B phone checks, civil lock).
+
 ## Install / run (demo end-to-end)
 
 ```bash

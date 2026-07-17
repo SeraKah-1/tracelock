@@ -16,7 +16,7 @@ Use this as a fill-in form. Items marked **DONE IN REPO** are ready; items marke
 | 1 | Devpost account + Join Hackathon | OPERATOR | |
 | 2 | Qwen Cloud account + API key | OPERATOR | https://www.qwencloud.com/ · free quota / voucher per resources page |
 | 3 | Discord (optional support) | OPERATOR | https://discord.gg/cDEHSV4Qqj |
-| 4 | Public GitHub repo | OPERATOR | Suggested: `https://github.com/<you>/tracelock` |
+| 4 | Public GitHub repo | DONE | https://github.com/SeraKah-1/tracelock |
 | 5 | Root LICENSE visible | DONE IN REPO | MIT `LICENSE` |
 | 6 | English README | DONE IN REPO | `README.md` |
 | 7 | Architecture diagram | DONE IN REPO | `docs/assets/architecture.svg` |
@@ -47,21 +47,21 @@ Track 4: Autopilot Agent
 
 ### Repository URL
 ```
-https://github.com/<YOUR_ORG>/tracelock
+https://github.com/SeraKah-1/tracelock
 ```
 
 ### Architecture diagram URL (raw or docs path)
 ```
-https://github.com/<YOUR_ORG>/tracelock/blob/main/docs/assets/architecture.svg
+https://github.com/SeraKah-1/tracelock/blob/main/docs/assets/architecture.svg
 ```
 
 ### Proof of Alibaba Cloud deployment (link to code file)
 ```
-https://github.com/<YOUR_ORG>/tracelock/blob/main/tracelock/qwen_client.py
+https://github.com/SeraKah-1/tracelock/blob/main/tracelock/qwen_client.py
 ```
 Secondary writeup:
 ```
-https://github.com/<YOUR_ORG>/tracelock/blob/main/docs/ALIBABA_QWEN_DEPLOYMENT.md
+https://github.com/SeraKah-1/tracelock/blob/main/docs/ALIBABA_QWEN_DEPLOYMENT.md
 ```
 
 ### Demo video URL
