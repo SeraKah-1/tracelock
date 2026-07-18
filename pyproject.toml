@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tracelock"
-version = "1.5.0"
-description = "TraceLock — ethical investigation autopilot agent (Qwen Cloud Track 4): ambiguous clues → tools → HITL → graded dossier"
+version = "2.0.0"
+description = "TraceLock — agentic OSINT autopilot: slim public-source core + messaging gateway (Telegram/webhook/email) + proactive scheduled jobs"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

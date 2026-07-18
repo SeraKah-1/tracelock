@@ -46,7 +46,8 @@ def test_investigate_continuous_no_network():
     assert len(loop.waves) >= 2
     assert loop.case_path
     assert loop.checklist_coverage.get("total", 0) >= 10
-    assert "Continuous investigation loop" in (loop.final_report or "")
+    assert "Laporan OSINT" in (loop.final_report or "")
+
 
 
 def test_investigate_cli():

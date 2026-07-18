@@ -35,7 +35,7 @@ def test_offline_plan_has_tools_and_hitl():
     assert "normalize_phone" in tools
     assert "report" in tools
     assert plan.steps  # non-empty
-    assert plan.provider == "alibaba-cloud-dashscope"
+    assert plan.provider == "local-planner"
     assert "dashscope" in plan.base_url or plan.base_url == DEFAULT_BASE_URL
 
 
@@ -78,8 +78,8 @@ def test_tool_init_and_report_dossier(case_path: Path):
     assert "dimensions" in r4["dossier"]
     r5 = run_tool("report", case_path)
     assert r5["ok"] is True
-    assert r5["report_class"] == "dossier"
-    assert "TraceLock Investigation Report" in r5["markdown"]
+    assert r5["report_class"] == "human_report"
+    assert "Laporan OSINT" in r5["markdown"]
     assert len(r5["markdown"]) > 100
 
 

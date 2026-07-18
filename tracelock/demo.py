@@ -195,6 +195,83 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("deploy-proof", help="Print Alibaba/Qwen deployment fingerprint JSON")
     sub.add_parser("tools", help="List agent tools")
+    sub.add_parser(
+        "core",
+        help="Show slim OSINT core toolset packs",
+    )
+
+    # --- Agentic runtime (gateway / cron / skills) ---
+    gw_p = sub.add_parser(
+        "gateway",
+        help="Messaging gateway: Telegram + HTTP webhook + cron tick",
+    )
+    gw_sub = gw_p.add_subparsers(dest="gateway_cmd")
+    gw_start = gw_sub.add_parser("start", help="Start long-running gateway process")
+    gw_start.add_argument("--host", default=None)
+    gw_start.add_argument("--port", type=int, default=None)
+    gw_start.add_argument("--no-telegram", action="store_true")
+    gw_start.add_argument("--no-cron", action="store_true")
+    gw_start.add_argument("--no-network", action="store_true")
+    gw_start.add_argument("--cases-dir", default=None)
+    gw_sub.add_parser("status", help="Print gateway config / skill status JSON")
+
+    cron_p = sub.add_parser(
+        "cron",
+        help="Proactive OSINT jobs (schedule → investigate → deliver)",
+    )
+    cron_sub = cron_p.add_subparsers(dest="cron_cmd")
+    cron_add = cron_sub.add_parser("add", help="Add a scheduled OSINT job")
+    cron_add.add_argument("--name", required=True)
+    cron_add.add_argument(
+        "--schedule",
+        required=True,
+        help="interval:30m | interval:1h | interval:1d | once:YYYY-MM-DD | @startup",
+    )
+    cron_add.add_argument("--prompt", required=True, help="OSINT clue / subject")
+    cron_add.add_argument(
+        "--deliver",
+        action="append",
+        default=None,
+        help="Repeatable: file:/path | telegram:CHAT_ID | email:a@b | stdout | webhook:URL",
+    )
+    cron_add.add_argument("--max-waves", type=int, default=3)
+    cron_add.add_argument("--case-dir", default="")
+    cron_sub.add_parser("list", help="List jobs")
+    cron_rm = cron_sub.add_parser("remove", help="Remove job by id")
+    cron_rm.add_argument("--id", required=True)
+    cron_due = cron_sub.add_parser("run-due", help="Execute due jobs once")
+    cron_due.add_argument("--force", action="store_true", help="Run all enabled jobs now")
+    cron_due.add_argument("--no-network", action="store_true")
+
+    watch_p = sub.add_parser(
+        "watch",
+        help="Proactive: scan cases dir and continue open gaps without being asked",
+    )
+    watch_p.add_argument(
+        "--cases-dir",
+        default=None,
+        help="Default: ~/.tracelock/cases",
+    )
+    watch_p.add_argument("--interval", type=float, default=300.0, help="Seconds between scans")
+    watch_p.add_argument("--once", action="store_true", help="Single tick then exit")
+    watch_p.add_argument("--max-cases", type=int, default=3)
+    watch_p.add_argument("--max-waves", type=int, default=2)
+    watch_p.add_argument("--no-network", action="store_true")
+    watch_p.add_argument(
+        "--deliver",
+        action="append",
+        default=None,
+        help="Optional delivery targets (same syntax as cron)",
+    )
+
+    skill_p = sub.add_parser("skill", help="Run or list skills (osint-investigate)")
+    skill_sub = skill_p.add_subparsers(dest="skill_cmd")
+    skill_sub.add_parser("list", help="List skill manifests")
+    skill_run = skill_sub.add_parser("run", help="Run osint-investigate skill")
+    skill_run.add_argument("text", nargs="+", help="Clue phrase")
+    skill_run.add_argument("--case", default=None)
+    skill_run.add_argument("--max-waves", type=int, default=4)
+    skill_run.add_argument("--no-network", action="store_true")
 
     return p
 
@@ -218,6 +295,150 @@ def main(argv: list[str] | None = None) -> int:
         for name in sorted(REGISTRY):
             print(name)
         return 0
+
+    if args.cmd == "core":
+        from tracelock.core_tools import slim_summary
+
+        print(json.dumps(slim_summary(), indent=2))
+        return 0
+
+    if args.cmd == "gateway":
+        from tracelock.gateway.runner import GatewayConfig, run_gateway
+        from tracelock.skills.osint_skill import skill_manifest
+
+        if args.gateway_cmd == "status":
+            cfg = GatewayConfig.from_env()
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "config": {
+                            "host": cfg.host,
+                            "port": cfg.port,
+                            "telegram": cfg.enable_telegram,
+                            "cron": cfg.enable_cron,
+                            "cases_dir": cfg.cases_dir,
+                        },
+                        "skill": skill_manifest(),
+                        "env_hints": [
+                            "TRACELOCK_TELEGRAM_BOT_TOKEN",
+                            "TRACELOCK_TELEGRAM_ALLOWLIST",
+                            "TRACELOCK_GATEWAY_PORT",
+                            "TRACELOCK_SMTP_HOST",
+                        ],
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        if args.gateway_cmd == "start":
+            cfg = GatewayConfig.from_env()
+            if args.host:
+                cfg.host = args.host
+            if args.port:
+                cfg.port = args.port
+            if args.no_telegram:
+                cfg.enable_telegram = False
+            if args.no_cron:
+                cfg.enable_cron = False
+            if args.no_network:
+                cfg.no_network = True
+                os.environ["TRACELOCK_NO_NETWORK"] = "1"
+            if args.cases_dir:
+                cfg.cases_dir = args.cases_dir
+            run_gateway(cfg, block=True)
+            return 0
+        parser.parse_args(["gateway", "--help"])
+        return 2
+
+    if args.cmd == "cron":
+        from tracelock.cron.jobs import add_job, list_jobs, remove_job
+        from tracelock.cron.runner import run_due_jobs
+
+        if args.cron_cmd == "add":
+            job = add_job(
+                args.name,
+                args.schedule,
+                args.prompt,
+                deliver=args.deliver or ["stdout"],
+                case_dir=args.case_dir or "",
+                max_waves=int(args.max_waves),
+            )
+            print(json.dumps({"ok": True, "job": job.to_dict()}, indent=2))
+            return 0
+        if args.cron_cmd == "list":
+            print(json.dumps({"jobs": list_jobs()}, indent=2))
+            return 0
+        if args.cron_cmd == "remove":
+            ok = remove_job(args.id)
+            print(json.dumps({"ok": ok, "id": args.id}))
+            return 0 if ok else 1
+        if args.cron_cmd == "run-due":
+            if args.no_network:
+                os.environ["TRACELOCK_NO_NETWORK"] = "1"
+            results = run_due_jobs(force_all=bool(args.force), no_network=bool(args.no_network))
+            print(json.dumps({"ok": True, "ran": len(results), "results": results}, indent=2)[:12000])
+            return 0
+        parser.parse_args(["cron", "--help"])
+        return 2
+
+    if args.cmd == "watch":
+        from tracelock.proactive import proactive_tick, scan_cases, watch_forever
+
+        cases_dir = Path(
+            args.cases_dir
+            or os.environ.get("TRACELOCK_CASES_DIR")
+            or (Path.home() / ".tracelock" / "cases")
+        )
+        if args.no_network:
+            os.environ["TRACELOCK_NO_NETWORK"] = "1"
+        if args.once:
+            scanned = scan_cases(cases_dir)
+            results = proactive_tick(
+                cases_dir,
+                max_cases=int(args.max_cases),
+                max_waves=int(args.max_waves),
+                no_network=bool(args.no_network),
+                deliver=args.deliver,
+            )
+            print(
+                json.dumps(
+                    {"scanned": scanned, "continued": results},
+                    indent=2,
+                    ensure_ascii=False,
+                )[:12000]
+            )
+            return 0
+        watch_forever(
+            cases_dir,
+            interval_sec=float(args.interval),
+            max_cases=int(args.max_cases),
+            max_waves=int(args.max_waves),
+            no_network=bool(args.no_network),
+            deliver=args.deliver,
+        )
+        return 0
+
+    if args.cmd == "skill":
+        from tracelock.skills.osint_skill import run_osint_skill, skill_manifest
+
+        if args.skill_cmd == "list":
+            print(json.dumps({"skills": [skill_manifest()]}, indent=2))
+            return 0
+        if args.skill_cmd == "run":
+            phrase = " ".join(args.text)
+            case = Path(args.case) if args.case else None
+            res = run_osint_skill(
+                phrase,
+                case_path=case,
+                max_waves=int(args.max_waves),
+                no_network=bool(args.no_network),
+            )
+            print(res.to_message())
+            print(json.dumps({"ok": res.ok, "case_path": res.case_path, "waves": res.waves}))
+            return 0 if res.ok else 1
+        parser.parse_args(["skill", "--help"])
+        return 2
 
     if args.cmd == "serve":
         from tracelock.cockpit import serve_cockpit

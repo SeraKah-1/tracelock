@@ -93,6 +93,14 @@ python3 -m tracelock footprint @demo_subject_ig   # preview checklist only
 python3 -m tracelock serve --port 8765
 # → http://127.0.0.1:8765/
 
+# agentic runtime — messaging + scheduled jobs + proactive continue
+python3 -m tracelock core                    # slim OSINT tool packs
+python3 -m tracelock skill run @demo_subject_ig
+python3 -m tracelock cron add --name daily --schedule interval:1d \
+  --prompt '@demo_subject_ig' --deliver file:/tmp/tl-out.txt
+python3 -m tracelock gateway start --port 8787   # Telegram/webhook/email
+python3 -m tracelock watch --once                # continue open cases unprompted
+
 # live Qwen planner
 export DASHSCOPE_API_KEY=sk-...
 python3 -m tracelock run --clue 'username:example_ig'
@@ -109,7 +117,7 @@ result = run_agent(
 print(result.report_markdown)
 ```
 
-More: [`docs/USAGE.md`](docs/USAGE.md) · continuous: [`docs/CONTINUOUS_OSINT.md`](docs/CONTINUOUS_OSINT.md) · footprint: [`docs/DIGITAL_FOOTPRINT.md`](docs/DIGITAL_FOOTPRINT.md) · [`AGENTS.md`](AGENTS.md)
+More: [`docs/USAGE.md`](docs/USAGE.md) · continuous: [`docs/CONTINUOUS_OSINT.md`](docs/CONTINUOUS_OSINT.md) · footprint: [`docs/DIGITAL_FOOTPRINT.md`](docs/DIGITAL_FOOTPRINT.md) · agentic: [`docs/AGENTIC_RUNTIME.md`](docs/AGENTIC_RUNTIME.md) · deploy: [`deploy/alibaba-agentic.md`](deploy/alibaba-agentic.md) · [`AGENTS.md`](AGENTS.md)
 
 ---
 
