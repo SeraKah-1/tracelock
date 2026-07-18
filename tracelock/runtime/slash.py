@@ -33,24 +33,20 @@ Handler = Callable[[SlashContext, str], SlashResult]
 
 
 def _help(_: SlashContext, __: str) -> SlashResult:
-    text = """TraceLock slash commands
+    text = """TraceLock — short commands
 
-  /help              this help
-  /new  /reset       fresh conversation session
-  /status            config + session info
-  /model [id]        show or set model
-  /models            fetch GET {api_base}/models
-  /endpoint <url>    set OpenAI-compatible API base (…/v1)
-  /key <secret>      set API key (stored in ~/.tracelock/config.json)
-  /setup             interactive setup (TUI) / show setup hints
-  /memory [list]     show persistent memory
-  /personality [x]   operator | brief | forensic
-  /osint <clue>      force investigation phrasing into agent
-  /case              show active case path
-  /undo              drop last user+assistant exchange
-  /stop              acknowledge stop (gateway interrupt)
+  find / who / hunt <clue>   full detective OSINT (alias: /f /w /h)
+  /go <clue>                 same as find
+  /pivot                     force triangulate on current case
+  /new                       clear session
+  /status  /case             where you are
+  /model  /models  /key      LLM setup
+  /endpoint <url>            API base …/v1
+  /mem                       memory notes
+  /help
 
-Chat without a slash command goes to the agent (tool-calling loop).
+Or just type a clue:  @handle   phone:08…   name:Someone
+Agent multi-hops: surface → pivot → anchors → report.
 """
     return SlashResult(True, text)
 
@@ -138,13 +134,31 @@ def _personality(ctx: SlashContext, args: str) -> SlashResult:
 def _osint(ctx: SlashContext, args: str) -> SlashResult:
     clue = args.strip()
     if not clue:
-        return SlashResult(True, "Usage: /osint @handle | phone:… | name:…")
-    # pass through as investigation request
+        return SlashResult(
+            True,
+            "Usage: find @handle · who name:… · hunt phone:08…\n"
+            "Short: /f /w /h /go",
+        )
     prompt = (
-        f"Run a full public-source OSINT investigation on: {clue}\n"
-        "Use tools multi-step (analyze, footprint, collect_public, dossier, report). "
-        "Do not stop after one tool. Return a human brief."
+        f"DETECTIVE OSINT (non-linear triangulation) on: {clue}\n"
+        "Run analyze → digital_footprint → collect_public → triangulate → "
+        "expand new seeds with collect_public again → triangulate → "
+        "build_dossier → report. "
+        "Treat every handle/school/place/doc hit as a new door. "
+        "Cross-validate anchors with public packs. Human brief + lead pivots."
     )
+    return SlashResult(True, "", passthrough=prompt)
+
+
+def _pivot(ctx: SlashContext, args: str) -> SlashResult:
+    """Force triangulate path via agent or skill."""
+    extra = args.strip()
+    prompt = (
+        "Run tool triangulate on the active case, then collect_public on next_modules, "
+        "then triangulate again, then report. Focus on second accounts and anchors."
+    )
+    if extra:
+        prompt = f"Clue/context: {extra}\n" + prompt
     return SlashResult(True, "", passthrough=prompt)
 
 
@@ -189,7 +203,9 @@ def _stop(_: SlashContext, __: str) -> SlashResult:
 COMMANDS: dict[str, Handler] = {
     "help": _help,
     "start": _help,
+    "?": _help,
     "status": _status,
+    "st": _status,
     "new": _new,
     "reset": _new,
     "model": _model,
@@ -198,9 +214,23 @@ COMMANDS: dict[str, Handler] = {
     "key": _key,
     "apikey": _key,
     "memory": _memory,
+    "mem": _memory,
     "personality": _personality,
+    # human short verbs
     "osint": _osint,
     "investigate": _osint,
+    "find": _osint,
+    "who": _osint,
+    "hunt": _osint,
+    "go": _osint,
+    "f": _osint,
+    "w": _osint,
+    "h": _osint,
+    "cari": _osint,
+    "lacak": _osint,
+    "siapa": _osint,
+    "pivot": _pivot,
+    "tri": _pivot,
     "case": _case,
     "undo": _undo,
     "setup": _setup,

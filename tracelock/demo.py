@@ -38,15 +38,43 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="tracelock",
         description=(
-            f"{__product__} v{__version__} — {__pitch__}"
+            f"{__product__} v{__version__} — short cmds: find · who · hunt · chat · setup"
         ),
+        epilog=(
+            "Examples:\n"
+            "  tracelock find @handle\n"
+            "  tracelock who 'name:Someone'\n"
+            "  tracelock hunt phone:08…\n"
+            "  tracelock chat\n"
+            "  tl find @handle\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("--version", action="version", version=f"{__product__} {__version__}")
     sub = p.add_subparsers(dest="cmd")
 
+    # --- Human-first short verbs (primary UX) ---
+    for verb, h in (
+        ("find", "Detective OSINT from a short clue (main command)"),
+        ("who", "Same as find — who is this handle/name/phone?"),
+        ("hunt", "Same as find — multi-hop triangulation hunt"),
+        ("cari", "Alias find (ID)"),
+        ("lacak", "Alias find (ID)"),
+        ("go", "Alias find"),
+    ):
+        vp = sub.add_parser(verb, help=h)
+        vp.add_argument("text", nargs="+", help="Clue: @handle | phone:… | name:… | free text")
+        vp.add_argument("--case", default=None)
+        vp.add_argument("--max-waves", type=int, default=5)
+        vp.add_argument("--min-waves", type=int, default=2)
+        vp.add_argument("--no-network", action="store_true")
+        vp.add_argument("--agent", action="store_true", help="Force LLM tool-calling agent path")
+        vp.add_argument("--json-out", default=None)
+        vp.add_argument("--quiet", action="store_true")
+
     run_p = sub.add_parser(
         "run",
-        help="Run autopilot loop (offline fixture unless DASHSCOPE_API_KEY set)",
+        help="Low-level autopilot plan loop (prefer: find)",
     )
     run_p.add_argument(
         "--clue",
@@ -128,7 +156,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     inv_p = sub.add_parser(
         "investigate",
-        help="Continuous multi-wave OSINT (anti-lazy): plan→act→observe→replan until done",
+        help="Alias of find — continuous multi-wave triangulation",
     )
     inv_p.add_argument("text", nargs="+", help="Short clue / subject phrase")
     inv_p.add_argument("--case", default=None)
@@ -299,11 +327,51 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def main_find(argv: list[str] | None = None) -> int:
+    """Console script `find` → always routes to find subcommand."""
+    argv = list(sys.argv[1:] if argv is None else argv)
+    return main(["find"] + argv)
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    # bare invocation → short help for host agents
+    # bare → human help
     if not argv:
-        argv = ["osint", "--help"]
+        argv = ["--help"]
+
+    # Bare clue without subcommand: tracelock @handle → find @handle
+    known = {
+        "run",
+        "osint",
+        "footprint",
+        "investigate",
+        "continue",
+        "serve",
+        "hitl",
+        "report",
+        "deploy-proof",
+        "tools",
+        "core",
+        "chat",
+        "setup",
+        "model",
+        "ask",
+        "gateway",
+        "cron",
+        "watch",
+        "skill",
+        "find",
+        "who",
+        "hunt",
+        "cari",
+        "lacak",
+        "go",
+        "-h",
+        "--help",
+        "--version",
+    }
+    if argv and not argv[0].startswith("-") and argv[0] not in known:
+        argv = ["find"] + argv
 
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -565,13 +633,25 @@ def main(argv: list[str] | None = None) -> int:
             print(text)
         return 0 if r.get("ok") else 1
 
-    if args.cmd == "investigate":
+    if args.cmd in ("investigate", "find", "who", "hunt", "cari", "lacak", "go"):
         phrase = " ".join(args.text)
+        # Optional LLM agent path
+        if getattr(args, "agent", False):
+            from tracelock.runtime.pipeline import handle_message
+
+            out = handle_message(
+                f"find {phrase}",
+                platform="cli",
+                external_id="find",
+            )
+            print(out.reply)
+            return 0 if (not out.agent or out.agent.ok) else 1
+
         if args.case:
             case_path = Path(args.case)
         else:
-            case_path = Path(tempfile.mkdtemp(prefix="tracelock-inv-")) / "case.json"
-        no_net = bool(args.no_network or args.offline)
+            case_path = Path(tempfile.mkdtemp(prefix="tracelock-find-")) / "case.json"
+        no_net = bool(getattr(args, "no_network", False) or getattr(args, "offline", False))
         if no_net:
             os.environ["TRACELOCK_NO_NETWORK"] = "1"
             os.environ["TRACELOCK_OFFLINE"] = "1"
@@ -581,15 +661,26 @@ def main(argv: list[str] | None = None) -> int:
         loop = investigate_continuous(
             phrase,
             case_path,
-            max_waves=int(args.max_waves),
-            min_waves=int(args.min_waves),
+            max_waves=int(getattr(args, "max_waves", 5) or 5),
+            min_waves=int(getattr(args, "min_waves", 2) or 2),
         )
+        # surface triangulation summary
+        tri = {}
+        graph_txt = ""
+        try:
+            from osint_cli.state import load_state
+            from tracelock.triangulate import graph_summary
+
+            st = load_state(case_path)
+            tri = st.get("triangulation") or {}
+            graph_txt = graph_summary(st)
+        except Exception:
+            pass
         payload = loop.to_dict()
         payload["input_phrase"] = phrase
-        payload["host_agent_note"] = (
-            "Continuous loop: wave1 full plan+collect, then deepen until gaps/HITL-only. "
-            "Host AI should NOT stop after one shell command — use `continue --case` if gaps remain."
-        )
+        payload["command"] = args.cmd
+        payload["triangulation"] = tri
+        payload["method"] = "detective_multi_hop_public"
         if args.json_out:
             Path(args.json_out).write_text(
                 json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -597,10 +688,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.quiet:
             print(json.dumps(payload, indent=2, ensure_ascii=False))
         else:
-            print(f"## Continuous investigate: {phrase}")
-            print(f"Waves={len(loop.waves)} stop={loop.stop_reason} case={loop.case_path}")
+            print(f"## find: {phrase}")
+            print(
+                f"waves={len(loop.waves)} stop={loop.stop_reason} "
+                f"pivots={tri.get('promoted_count', 0)} case={loop.case_path}"
+            )
             for w in loop.waves:
                 print(f"  wave{w.wave}: tools={w.tools_run} gaps={w.open_gaps}")
+            if graph_txt:
+                print()
+                print(graph_txt)
             print()
             print(loop.final_report[:8000] if loop.final_report else "(no report)")
             print(
@@ -610,6 +707,7 @@ def main(argv: list[str] | None = None) -> int:
                         "waves": len(loop.waves),
                         "stop_reason": loop.stop_reason,
                         "case_path": loop.case_path,
+                        "pivots": tri.get("promoted_count"),
                         "checklist": loop.checklist_coverage,
                     },
                     indent=2,

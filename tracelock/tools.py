@@ -537,6 +537,53 @@ def tool_report(case_path: Path, **_kwargs: Any) -> dict[str, Any]:
     }
 
 
+def tool_triangulate(
+    case_path: Path,
+    clues: list[str] | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Non-linear pivot: harvest leads from evidence → new seeds + lead graph."""
+    from tracelock.triangulate import (
+        graph_summary,
+        next_collect_modules,
+        promote_leads,
+    )
+
+    state = load_state(case_path)
+    for raw in clues or []:
+        try:
+            add_seed(state, raw)
+        except Exception:
+            pass
+    args = kwargs.get("args") or {}
+    max_new = int(args.get("max_new_seeds") or kwargs.get("max_new_seeds") or 8)
+    tri = promote_leads(state, max_new_seeds=max_new)
+    mods = next_collect_modules(state)
+    state["triangulation_next_modules"] = mods
+    _ev(
+        state,
+        etype="triangulate",
+        value={
+            "promoted": tri.get("promoted_count"),
+            "nodes": tri.get("nodes"),
+            "modules": mods,
+        },
+    )
+    save_state(state, case_path)
+    return {
+        "ok": True,
+        "tool": "triangulate",
+        "promoted_count": tri.get("promoted_count"),
+        "lead_pool": tri.get("lead_pool"),
+        "nodes": tri.get("nodes"),
+        "edges": tri.get("edges"),
+        "promoted": tri.get("promoted"),
+        "next_modules": mods,
+        "graph_preview": graph_summary(state)[:2000],
+        "method": "multi_hop_public_pivot",
+    }
+
+
 REGISTRY: dict[str, ToolFn] = {
     "init_case": tool_init_case,
     "analyze_clues": tool_analyze_clues,
@@ -548,6 +595,7 @@ REGISTRY: dict[str, ToolFn] = {
     "collect_public": tool_collect_public,
     "plan_sources": tool_plan_sources,
     "open_hitl": tool_open_hitl,
+    "triangulate": tool_triangulate,
     "build_dossier": tool_build_dossier,
     "report": tool_report,
 }

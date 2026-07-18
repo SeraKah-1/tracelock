@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tracelock"
-version = "2.1.0"
-description = "TraceLock — agentic OSINT: OpenAI-compatible tool-calling agent, memory, slash commands, TUI, multi-platform gateway"
+version = "2.2.0"
+description = "TraceLock — detective OSINT: short commands (find/who/hunt), multi-hop triangulation, agentic tool loop, messaging gateway"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -28,6 +28,8 @@ dev = ["pytest>=7.0", "openai>=1.30.0"]
 
 [project.scripts]
 tracelock = "tracelock.demo:main"
+tl = "tracelock.demo:main"
+find = "tracelock.demo:main_find"
 osint-cli = "osint_cli.cli:main"
 
 [project.urls]

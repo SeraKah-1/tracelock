@@ -137,6 +137,15 @@ def propose_next_actions(state: dict[str, Any], gaps: list[str]) -> list[dict[st
     has_name = any(s.get("type") == "name" for s in seeds)
     has_user = any(s.get("type") == "username" for s in seeds)
 
+    # Always pivot graph between waves when we have any evidence
+    if state.get("evidence"):
+        actions.append(
+            {
+                "tool": "triangulate",
+                "why": "Harvest leads → second accounts / anchors / places",
+            }
+        )
+
     if "username_enum_not_run" in gaps or "no_platform_or_web_signal_for_handle" in gaps:
         actions.append(
             {
@@ -282,10 +291,20 @@ def _run_wave_tools(
             "phone_checklist",
             "name_pattern_enum",
             "plan_sources",
+            "triangulate",
             "build_dossier",
             "report",
             "open_hitl",
         ):
+            # After pivot, prefer modules suggested by lead graph
+            if tool == "collect_public" and not args.get("modules"):
+                try:
+                    st = load_state(case_path)
+                    mods = st.get("triangulation_next_modules")
+                    if mods:
+                        args["modules"] = mods
+                except Exception:
+                    pass
             run_tool(tool, case_path, clues=clues, args=args)
 
 
@@ -375,10 +394,23 @@ def investigate_continuous(
             except Exception:
                 pass
 
-        _run_wave_tools(case_path, clues, nxt, on_event=on_event)
-        # always refresh report
+        # Expand clues from newly promoted handles (non-linear)
         from tracelock.tools import run_tool
 
+        run_tool("triangulate", case_path, clues=clues)
+        state = load_state(case_path)
+        for s in state.get("seeds") or []:
+            if s.get("type") == "username":
+                c = f"username:{s.get('normalized') or s.get('value')}"
+                if c not in clues:
+                    clues.append(c)
+            if s.get("type") == "name":
+                c = f"name:{s.get('normalized') or s.get('value')}"
+                if c not in clues:
+                    clues.append(c)
+
+        _run_wave_tools(case_path, clues, nxt, on_event=on_event)
+        # always refresh report
         run_tool("build_dossier", case_path, clues=clues)
         rep = run_tool("report", case_path, clues=clues)
 

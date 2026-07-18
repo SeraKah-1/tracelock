@@ -80,6 +80,15 @@ def openai_tools() -> list[dict[str, Any]]:
             ),
         ),
         (
+            "triangulate",
+            (
+                "Non-linear detective pivot: scan all evidence for second accounts, "
+                "friend handles, schools, places, public-doc anchors; promote to new seeds; "
+                "build lead graph. Call after every collect_public/digital_footprint wave."
+            ),
+            _props(max_new_seeds={"type": "integer"}),
+        ),
+        (
             "build_dossier",
             "Build structured graded dossier dimensions from evidence.",
             _props(),

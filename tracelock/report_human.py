@@ -293,6 +293,32 @@ def build_human_report(state: dict[str, Any]) -> dict[str, str]:
             "_Prefix operator = soft clue, bukan alamat domisili. Layer-B e-wallet = HITL saja._"
         )
         h.append("")
+    # Detective triangulation / lead graph
+    graph = state.get("lead_graph") or {}
+    nodes = [n for n in (graph.get("nodes") or []) if isinstance(n, dict)]
+    tri = state.get("triangulation") or {}
+    if nodes or tri:
+        h.append("## Jalur pivot (triangulasi)")
+        h.append("")
+        h.append(
+            "Setiap temuan bisa membuka pintu baru (akun kedua, sekolah, domisili, "
+            "dokumen publik) — bukan satu kali search lurus."
+        )
+        h.append("")
+        pivots = [n for n in nodes if n.get("role") in ("pivot", "anchor_hint")]
+        if pivots:
+            for n in pivots[:18]:
+                why = n.get("why") or ""
+                h.append(
+                    f"- **{n.get('kind')}** `{n.get('value')}` "
+                    f"— {why} · role={n.get('role')}"
+                )
+        else:
+            h.append(
+                f"_Lead pool dipindai; promoted={tri.get('promoted_count', 0)} "
+                f"nodes={tri.get('nodes', len(nodes))}._"
+            )
+        h.append("")
     h.append("## Yang perlu dilakukan manusia (HITL)")
     h.append("")
     h.extend(_hitl_section(gates))
@@ -313,6 +339,11 @@ def build_human_report(state: dict[str, Any]) -> dict[str, str]:
         h.append(
             f"4. Continuous loop: wave **{loop.get('wave')}** "
             f"(gaps: {', '.join(loop.get('gaps') or []) or '—'})."
+        )
+    if tri.get("promoted_count"):
+        h.append(
+            f"5. Triangulasi: **{tri.get('promoted_count')}** pivot dipromosikan "
+            f"dari {tri.get('lead_pool', 0)} lead kandidat."
         )
     h.append("")
     h.append("---")
@@ -340,6 +371,10 @@ def build_human_report(state: dict[str, Any]) -> dict[str, str]:
             brief_lines.append("  " + w.split("\n")[0].lstrip("- "))
     if hitl_open:
         brief_lines.append(f"HITL terbuka: {hitl_open} (selesaikan di cockpit/browser)")
+    if tri.get("promoted_count"):
+        brief_lines.append(
+            f"Pivots: {tri.get('promoted_count')} lead baru (triangulasi multi-hop)"
+        )
     brief_txt = "\n".join(brief_lines)
 
     # --- Technical appendix (compact, not full dump) ---

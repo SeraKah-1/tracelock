@@ -62,24 +62,19 @@ pip install '.[qwen]'
 
 ## Quickstart
 
+Commands are short on purpose:
+
 ```bash
-# offline demo (no API key)
-python3 -m tracelock run --offline
+# main verb — detective multi-hop OSINT (LIVE public tools)
+python3 -m tracelock find @demo_subject_ig
+python3 -m tracelock who "name:Example Public Figure"
+python3 -m tracelock hunt phone:081255500100
 
-# your clues
-python3 -m tracelock run --offline \
-  --clue 'username:example_ig' \
-  --clue 'phone:0812xxxxxxx'
+# even shorter: bare clue or `tl` after pip install
+python3 -m tracelock @demo_subject_ig
+# tl find @demo_subject_ig
 
-# stream events to JSONL (for host agents / demos)
-python3 -m tracelock run --offline --events-out /tmp/tracelock-events.jsonl
-
-# short prompt → full OSINT (LIVE public tools; NO DashScope key required)
-python3 -m tracelock osint @demo_subject_ig
-python3 -m tracelock osint "name:Example Public Figure"
-
-# continuous multi-wave (anti-lazy — like coding agent loops)
-python3 -m tracelock investigate "name:Example Public Figure"
+# continue / report
 python3 -m tracelock continue --case /path/to/case.json
 
 # rebuild clean human report from a case
@@ -93,15 +88,11 @@ python3 -m tracelock footprint @demo_subject_ig   # preview checklist only
 python3 -m tracelock serve --port 8765
 # → http://127.0.0.1:8765/
 
-# agentic runtime — tool-calling agent + TUI + platforms
+# chat / LLM agent (same pipeline as Telegram)
 python3 -m tracelock setup                   # API base + key + /v1/models
-python3 -m tracelock chat                    # interactive console (slash commands)
-python3 -m tracelock ask "OSINT @demo_subject_ig"
-python3 -m tracelock model --list            # GET {endpoint}/models
-python3 -m tracelock gateway start --port 8787   # Telegram / WhatsApp webhook
-python3 -m tracelock cron add --name daily --schedule interval:1d \
-  --prompt '@demo_subject_ig' --deliver file:/tmp/tl-out.txt
-python3 -m tracelock watch --once                # continue open cases unprompted
+python3 -m tracelock chat                    # type: find @handle  or  /f @handle
+python3 -m tracelock ask "find @demo_subject_ig"
+python3 -m tracelock gateway start --port 8787
 
 # live Qwen planner
 export DASHSCOPE_API_KEY=sk-...

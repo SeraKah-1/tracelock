@@ -23,6 +23,7 @@ CORE_OSINT: tuple[str, ...] = (
     "name_pattern_enum",
     "digital_footprint",
     "collect_public",  # live SERP + username enum
+    "triangulate",  # multi-hop lead pivots
     "build_dossier",
     "report",
 )
