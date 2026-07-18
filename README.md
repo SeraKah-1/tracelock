@@ -62,17 +62,28 @@ pip install '.[qwen]'
 
 ## Quickstart
 
-Commands are short on purpose:
+### Full-screen TUI (default)
 
 ```bash
-# main verb — detective multi-hop OSINT (LIVE public tools)
+python3 -m tracelock              # opens operator TUI
+python3 -m tracelock chat
+python3 -m tracelock chat -c      # continue last session
+python3 -m tracelock tui --simple # classic line mode
+```
+
+**TUI keys:** `Enter` send · `Ctrl+N` newline · `Tab` slash complete · `↑/↓` history ·  
+`PgUp/PgDn` scroll · `Ctrl+C` interrupt · `Ctrl+D` quit · type `/help` or `/find @x`
+
+### One-shot detective commands
+
+```bash
+# main verb — multi-hop OSINT (LIVE public tools)
 python3 -m tracelock find @demo_subject_ig
 python3 -m tracelock who "name:Example Public Figure"
 python3 -m tracelock hunt phone:081255500100
 
-# even shorter: bare clue or `tl` after pip install
+# bare clue
 python3 -m tracelock @demo_subject_ig
-# tl find @demo_subject_ig
 
 # continue / report
 python3 -m tracelock continue --case /path/to/case.json

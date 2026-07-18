@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tracelock"
-version = "2.2.0"
-description = "TraceLock — detective OSINT: short commands (find/who/hunt), multi-hop triangulation, agentic tool loop, messaging gateway"
+version = "2.3.0"
+description = "TraceLock — detective OSINT with full-screen TUI, multi-hop triangulation, agentic tool loop, messaging gateway"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

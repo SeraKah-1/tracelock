@@ -42,10 +42,10 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         epilog=(
             "Examples:\n"
+            "  tracelock                 # full-screen TUI\n"
+            "  tracelock chat -c         # resume last TUI session\n"
             "  tracelock find @handle\n"
             "  tracelock who 'name:Someone'\n"
-            "  tracelock hunt phone:08…\n"
-            "  tracelock chat\n"
             "  tl find @handle\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -229,10 +229,34 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # --- True agentic runtime (TUI / setup / models) ---
-    sub.add_parser(
+    chat_p = sub.add_parser(
         "chat",
-        help="Interactive agent console (slash commands + tool-calling loop)",
+        help="Full-screen TUI (multiline, slash complete, tool feed, sessions)",
     )
+    chat_p.add_argument(
+        "-c",
+        "--continue",
+        dest="cont",
+        action="store_true",
+        help="Resume most recent TUI session",
+    )
+    chat_p.add_argument(
+        "-r",
+        "--resume",
+        default=None,
+        help="Resume session id",
+    )
+    chat_p.add_argument(
+        "--simple",
+        action="store_true",
+        help="Classic line mode (no curses)",
+    )
+    chat_p.add_argument("--session", default="tui_local", help="Session external id")
+    tui_p = sub.add_parser("tui", help="Alias of chat — full-screen operator console")
+    tui_p.add_argument("-c", "--continue", dest="cont", action="store_true")
+    tui_p.add_argument("-r", "--resume", default=None)
+    tui_p.add_argument("--simple", action="store_true")
+    tui_p.add_argument("--session", default="tui_local")
     sub.add_parser(
         "setup",
         help="Configure API endpoint, API key, model (fetches /v1/models)",
@@ -335,9 +359,9 @@ def main_find(argv: list[str] | None = None) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    # bare → human help
+    # bare → full TUI (like modern agent CLIs)
     if not argv:
-        argv = ["--help"]
+        argv = ["chat"]
 
     # Bare clue without subcommand: tracelock @handle → find @handle
     known = {
@@ -353,6 +377,7 @@ def main(argv: list[str] | None = None) -> int:
         "tools",
         "core",
         "chat",
+        "tui",
         "setup",
         "model",
         "ask",
@@ -371,7 +396,11 @@ def main(argv: list[str] | None = None) -> int:
         "--version",
     }
     if argv and not argv[0].startswith("-") and argv[0] not in known:
-        argv = ["find"] + argv
+        # flags-only for chat resume: tracelock -c
+        if argv[0] in ("-c", "--continue", "-r", "--resume", "--simple"):
+            argv = ["chat"] + argv
+        else:
+            argv = ["find"] + argv
 
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -399,10 +428,15 @@ def main(argv: list[str] | None = None) -> int:
         run_setup_wizard()
         return 0
 
-    if args.cmd == "chat":
+    if args.cmd in ("chat", "tui"):
         from tracelock.runtime.tui import run_tui
 
-        return run_tui()
+        return run_tui(
+            session_id=getattr(args, "session", None) or "tui_local",
+            resume=bool(getattr(args, "cont", False)),
+            resume_id=getattr(args, "resume", None) or "",
+            simple=bool(getattr(args, "simple", False)),
+        )
 
     if args.cmd == "model":
         from tracelock.runtime.config import load_config, update_config
