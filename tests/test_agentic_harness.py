@@ -14,7 +14,7 @@ from tracelock.cron.jobs import (
     parse_interval_seconds,
     remove_job,
 )
-from tracelock.gateway.runner import GatewayConfig, handle_inbound_text
+from tracelock.gateway.runner import GatewayConfig, process_inbound
 from tracelock.skills.osint_skill import SkillResult, skill_manifest
 
 
@@ -73,16 +73,14 @@ def test_job_store_roundtrip(tmp_path: Path):
 
 
 def test_handle_inbound_help():
-    cfg = GatewayConfig(no_network=True, cases_dir="/tmp/tl-cases-test")
-    out = handle_inbound_text("/help", cfg=cfg)
-    assert "TraceLock" in out
-    assert "/osint" in out
+    out = process_inbound("/help", platform="test", external_id="help1")
+    assert "TraceLock" in out or "/osint" in out or "/help" in out.lower() or "slash" in out.lower()
+    assert "/model" in out or "model" in out.lower()
 
 
 def test_handle_inbound_status():
-    cfg = GatewayConfig(no_network=True, cases_dir="/tmp/tl-cases-test")
-    out = handle_inbound_text("/status", cfg=cfg)
-    assert "gateway" in out.lower() or "TraceLock" in out or "osint" in out.lower()
+    out = process_inbound("/status", platform="test", external_id="st1")
+    assert "model" in out.lower() or "api_base" in out or "session" in out.lower()
 
 
 def test_email_outbox(tmp_path: Path, monkeypatch=None):

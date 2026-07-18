@@ -29,6 +29,12 @@ export TRACELOCK_CASES_DIR=$TRACELOCK_HOME/cases
 export TRACELOCK_GATEWAY_HOST=0.0.0.0
 export TRACELOCK_GATEWAY_PORT=8787
 
+# OpenAI-compatible planner (DashScope / other)
+export TRACELOCK_API_BASE=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+export TRACELOCK_API_KEY=sk-...          # or DASHSCOPE_API_KEY
+export TRACELOCK_MODEL=qwen-plus
+# On first boot you can also: python -m tracelock setup
+
 # Telegram (recommended first channel)
 export TRACELOCK_TELEGRAM_BOT_TOKEN=123456:ABC...
 export TRACELOCK_TELEGRAM_ALLOWLIST=your_telegram_user_id

@@ -200,7 +200,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show slim OSINT core toolset packs",
     )
 
-    # --- Agentic runtime (gateway / cron / skills) ---
+    # --- True agentic runtime (TUI / setup / models) ---
+    sub.add_parser(
+        "chat",
+        help="Interactive agent console (slash commands + tool-calling loop)",
+    )
+    sub.add_parser(
+        "setup",
+        help="Configure API endpoint, API key, model (fetches /v1/models)",
+    )
+    model_p = sub.add_parser("model", help="Show/set model or list remote models")
+    model_p.add_argument("name", nargs="?", default=None, help="Model id to set")
+    model_p.add_argument(
+        "--list",
+        action="store_true",
+        help="GET {api_base}/models",
+    )
+    chat_one = sub.add_parser(
+        "ask",
+        help="One-shot agent turn (same pipeline as gateway/TUI)",
+    )
+    chat_one.add_argument("text", nargs="+", help="Message to the agent")
+    chat_one.add_argument("--session", default="cli")
+
+    # --- Gateway / cron / skills ---
     gw_p = sub.add_parser(
         "gateway",
         help="Messaging gateway: Telegram + HTTP webhook + cron tick",
@@ -302,16 +325,68 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(slim_summary(), indent=2))
         return 0
 
+    if args.cmd == "setup":
+        from tracelock.runtime.tui import run_setup_wizard
+
+        run_setup_wizard()
+        return 0
+
+    if args.cmd == "chat":
+        from tracelock.runtime.tui import run_tui
+
+        return run_tui()
+
+    if args.cmd == "model":
+        from tracelock.runtime.config import load_config, update_config
+        from tracelock.runtime.llm import list_models
+
+        cfg = load_config()
+        if args.list:
+            r = list_models(cfg.api_base, cfg.api_key)
+            print(json.dumps(r, indent=2, ensure_ascii=False))
+            return 0 if r.get("ok") else 1
+        if args.name:
+            update_config(model=args.name)
+            print(json.dumps({"ok": True, "model": args.name}))
+            return 0
+        print(json.dumps(cfg.public_status(), indent=2))
+        return 0
+
+    if args.cmd == "ask":
+        from tracelock.runtime.pipeline import handle_message
+
+        phrase = " ".join(args.text)
+        out = handle_message(phrase, platform="cli", external_id=args.session)
+        print(out.reply)
+        if out.agent:
+            print(
+                json.dumps(
+                    {
+                        "ok": out.agent.ok,
+                        "mode": out.agent.mode,
+                        "turns": out.agent.turns,
+                        "tools": [t.get("tool") for t in out.agent.tool_trace],
+                        "session_id": out.session_id,
+                        "case_path": out.agent.case_path,
+                    },
+                    indent=2,
+                )
+            )
+        return 0 if (not out.agent or out.agent.ok) else 1
+
     if args.cmd == "gateway":
         from tracelock.gateway.runner import GatewayConfig, run_gateway
+        from tracelock.runtime.config import load_config
         from tracelock.skills.osint_skill import skill_manifest
 
         if args.gateway_cmd == "status":
             cfg = GatewayConfig.from_env()
+            rt = load_config()
             print(
                 json.dumps(
                     {
                         "ok": True,
+                        "pipeline": "platform → slash → react_agent → tools → reply",
                         "config": {
                             "host": cfg.host,
                             "port": cfg.port,
@@ -319,12 +394,18 @@ def main(argv: list[str] | None = None) -> int:
                             "cron": cfg.enable_cron,
                             "cases_dir": cfg.cases_dir,
                         },
+                        "runtime": rt.public_status(),
                         "skill": skill_manifest(),
-                        "env_hints": [
-                            "TRACELOCK_TELEGRAM_BOT_TOKEN",
-                            "TRACELOCK_TELEGRAM_ALLOWLIST",
-                            "TRACELOCK_GATEWAY_PORT",
-                            "TRACELOCK_SMTP_HOST",
+                        "slash": [
+                            "/help",
+                            "/new",
+                            "/model",
+                            "/models",
+                            "/endpoint",
+                            "/key",
+                            "/osint",
+                            "/memory",
+                            "/status",
                         ],
                     },
                     indent=2,

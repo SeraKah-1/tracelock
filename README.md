@@ -93,12 +93,14 @@ python3 -m tracelock footprint @demo_subject_ig   # preview checklist only
 python3 -m tracelock serve --port 8765
 # → http://127.0.0.1:8765/
 
-# agentic runtime — messaging + scheduled jobs + proactive continue
-python3 -m tracelock core                    # slim OSINT tool packs
-python3 -m tracelock skill run @demo_subject_ig
+# agentic runtime — tool-calling agent + TUI + platforms
+python3 -m tracelock setup                   # API base + key + /v1/models
+python3 -m tracelock chat                    # interactive console (slash commands)
+python3 -m tracelock ask "OSINT @demo_subject_ig"
+python3 -m tracelock model --list            # GET {endpoint}/models
+python3 -m tracelock gateway start --port 8787   # Telegram / WhatsApp webhook
 python3 -m tracelock cron add --name daily --schedule interval:1d \
   --prompt '@demo_subject_ig' --deliver file:/tmp/tl-out.txt
-python3 -m tracelock gateway start --port 8787   # Telegram/webhook/email
 python3 -m tracelock watch --once                # continue open cases unprompted
 
 # live Qwen planner
