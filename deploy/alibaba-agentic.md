@@ -125,8 +125,9 @@ export TRACELOCK_USE_QWEN=1
 ## 8. Health checklist
 
 ```bash
-python -m tracelock core
+python -m tracelock model --list
 python -m tracelock gateway status
-python -m tracelock skill list
+python -m tracelock ask "/status"
 curl -s http://127.0.0.1:8787/health
+# Telegram: message bot with /help then /osint @handle
 ```
